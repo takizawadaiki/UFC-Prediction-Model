@@ -1,0 +1,1408 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>UFC Elo Matchup Predictor</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@400;500;600;700&family=Barlow:wght@400;500&display=swap');
+
+  :root {
+    --bg: #0a0a0a;
+    --bg2: #111111;
+    --bg3: #1a1a1a;
+    --bg4: #222222;
+    --border: rgba(255,255,255,0.08);
+    --border2: rgba(255,255,255,0.14);
+    --text: #f0f0f0;
+    --text2: #888;
+    --text3: #555;
+    --red: #e8373a;
+    --red-dim: rgba(232,55,58,0.15);
+    --blue: #3a8de8;
+    --blue-dim: rgba(58,141,232,0.15);
+    --gold: #c9a227;
+    --green: #3a9e5f;
+    --radius: 6px;
+    --radius-lg: 10px;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+  }
+
+  .topbar {
+    background: var(--bg2);
+    border-bottom: 1px solid var(--border);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    height: 52px;
+  }
+
+  .logo {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: 0.04em;
+    color: var(--text);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+
+  .logo-dot { color: var(--red); }
+  .badge { font-size: 10px; background: var(--red-dim); color: var(--red); padding: 2px 8px; border-radius: 20px; border: 1px solid var(--red); letter-spacing: 0.05em; font-weight: 500; }
+  .fighter-count { font-size: 12px; color: var(--text3); margin-left: auto; }
+
+  .main { max-width: 1000px; margin: 0 auto; padding: 24px 20px; }
+
+  .tabs {
+    display: flex;
+    gap: 4px;
+    margin-bottom: 20px;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 4px;
+    width: fit-content;
+  }
+
+  .tab {
+    padding: 7px 18px;
+    font-size: 13px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: none;
+    border-radius: 7px;
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .tab.active { background: var(--red); color: #fff; }
+  .tab:hover:not(.active) { color: var(--text); background: var(--bg3); }
+
+  .panel { display: none; }
+  .panel.active { display: block; }
+
+  .div-filter {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 5px;
+    margin-bottom: 14px;
+  }
+
+  .div-btn {
+    padding: 4px 12px;
+    font-size: 11px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-weight: 600;
+    letter-spacing: 0.05em;
+    text-transform: uppercase;
+    border: 1px solid var(--border2);
+    border-radius: 20px;
+    background: transparent;
+    color: var(--text2);
+    cursor: pointer;
+    transition: all 0.15s;
+  }
+
+  .div-btn.active { background: var(--bg3); color: var(--text); border-color: var(--border2); }
+  .div-btn:hover:not(.active) { border-color: var(--border2); color: var(--text); }
+
+  .search-row { margin-bottom: 14px; }
+  .search-row input {
+    width: 100%;
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    padding: 8px 12px;
+    outline: none;
+    transition: border-color 0.15s;
+  }
+  .search-row input:focus { border-color: var(--border2); }
+  .search-row input::placeholder { color: var(--text3); }
+
+  .corners {
+    display: grid;
+    grid-template-columns: 1fr 50px 1fr;
+    gap: 12px;
+    align-items: start;
+    margin-bottom: 14px;
+  }
+
+  .corner-card {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 14px;
+  }
+
+  .corner-card.red-card { border-top: 2px solid var(--red); }
+  .corner-card.blue-card { border-top: 2px solid var(--blue); }
+
+  .corner-label {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .label-red { color: var(--red); }
+  .label-blue { color: var(--blue); }
+
+  .corner-card select {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    padding: 7px 10px;
+    margin-bottom: 10px;
+    outline: none;
+    cursor: pointer;
+  }
+
+  .f-name {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    color: var(--text);
+    margin-bottom: 4px;
+  }
+
+  .f-meta {
+    font-size: 11px;
+    color: var(--text2);
+    margin-bottom: 8px;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    flex-wrap: wrap;
+  }
+
+  .elo-n { font-weight: 600; color: var(--gold); }
+
+  .stat-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; }
+  .stat-box { background: var(--bg3); border-radius: var(--radius); padding: 6px 8px; }
+  .stat-label { font-size: 9px; color: var(--text3); text-transform: uppercase; letter-spacing: 0.06em; margin-bottom: 2px; }
+  .stat-val { font-size: 13px; font-weight: 500; color: var(--text); }
+
+  .form-bar { display: flex; gap: 3px; margin-top: 8px; }
+  .fd {
+    width: 16px; height: 16px; border-radius: 50%;
+    font-size: 8px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .fd-w { background: rgba(58,158,95,0.2); color: #3a9e5f; border: 1px solid rgba(58,158,95,0.4); }
+  .fd-l { background: rgba(232,55,58,0.2); color: var(--red); border: 1px solid rgba(232,55,58,0.3); }
+  .fd-n { background: var(--bg4); color: var(--text3); border: 1px solid var(--border); }
+
+  .vs-col { display: flex; align-items: center; justify-content: center; padding-top: 2rem; }
+  .vs-text {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 28px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 0.05em;
+  }
+
+  .predict-btn {
+    width: 100%;
+    padding: 12px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 16px;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    border: 1px solid var(--red);
+    border-radius: var(--radius);
+    background: var(--red-dim);
+    color: var(--red);
+    cursor: pointer;
+    margin-bottom: 20px;
+    transition: all 0.15s;
+  }
+  .predict-btn:hover { background: var(--red); color: #fff; }
+
+  .section {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 16px;
+    margin-bottom: 12px;
+  }
+
+  .sec-title {
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 11px;
+    font-weight: 700;
+    color: var(--text3);
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    margin-bottom: 14px;
+  }
+
+  .win-row { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+  .win-name { font-size: 13px; font-weight: 500; color: var(--text); min-width: 130px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bar-wrap { flex: 1; height: 8px; background: var(--bg4); border-radius: 4px; overflow: hidden; }
+  .bar-fill { height: 100%; border-radius: 4px; transition: width 0.6s ease; }
+  .bar-red { background: var(--red); }
+  .bar-blue { background: var(--blue); }
+  .win-pct { font-size: 14px; font-weight: 600; color: var(--text); min-width: 38px; text-align: right; }
+  .fav-tag { font-size: 9px; padding: 1px 6px; background: rgba(201,162,39,0.15); color: var(--gold); border: 1px solid var(--gold); border-radius: 20px; margin-left: 4px; font-weight: 600; letter-spacing: 0.04em; }
+
+  .outcome-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 8px; }
+  .oc { background: var(--bg3); border-radius: var(--radius); padding: 12px; text-align: center; }
+  .oc-icon { font-size: 20px; margin-bottom: 5px; }
+  .oc-label { font-size: 10px; color: var(--text2); text-transform: uppercase; letter-spacing: 0.07em; margin-bottom: 4px; }
+  .oc-pct { font-family: 'Barlow Condensed', sans-serif; font-size: 28px; font-weight: 700; color: var(--text); }
+  .oc-sub { font-size: 10px; color: var(--text3); margin-top: 2px; }
+
+  .bk-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+  .bk { background: var(--bg3); border-radius: var(--radius); padding: 12px; }
+  .bk-name { font-family: 'Barlow Condensed', sans-serif; font-size: 14px; font-weight: 700; margin-bottom: 8px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .bk-row { display: flex; justify-content: space-between; font-size: 12px; padding: 4px 0; border-bottom: 1px solid var(--border); }
+  .bk-row:last-child { border-bottom: none; }
+  .bk-l { color: var(--text2); }
+  .bk-v { font-weight: 600; color: var(--text); }
+
+  .warn { font-size: 11px; color: #c9a227; margin-top: 6px; opacity: 0.85; }
+  .reach-note { font-size: 11px; color: var(--text2); margin-top: 4px; }
+  .elo-gap { font-size: 11px; color: var(--text3); margin-top: 4px; }
+
+  .su { color: var(--green); font-size: 11px; font-weight: 600; }
+  .sd { color: var(--red); font-size: 11px; font-weight: 600; }
+
+  /* Rankings */
+  .rank-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  .rank-table th {
+    text-align: left;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--text3);
+    padding: 7px 10px;
+    border-bottom: 1px solid var(--border);
+  }
+  .rank-table td { padding: 9px 10px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .rank-table tr:last-child td { border-bottom: none; }
+  .rank-table tr:hover td { background: var(--bg3); }
+  .rank-num { color: var(--text3); font-weight: 600; width: 28px; }
+  .rank-name { font-weight: 600; color: var(--text); }
+  .elo-pill { padding: 3px 9px; background: var(--bg3); border: 1px solid var(--border2); border-radius: 20px; font-weight: 600; font-size: 12px; color: var(--gold); }
+
+  /* Simulate */
+  .sim-controls { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-bottom: 14px; }
+  .sim-controls select {
+    flex: 1; min-width: 140px;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 12px;
+    padding: 7px 10px;
+    outline: none;
+    cursor: pointer;
+    appearance: auto;
+    -webkit-appearance: auto;
+    position: relative;
+    z-index: 10;
+  }
+  .sim-btn {
+    padding: 8px 16px;
+    font-family: 'Barlow Condensed', sans-serif;
+    font-size: 13px;
+    font-weight: 700;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    background: var(--bg3);
+    color: var(--text);
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .sim-btn:hover { border-color: var(--red); color: var(--red); }
+  .sim-btn.go { border-color: var(--red); background: var(--red-dim); color: var(--red); }
+  .sim-btn.go:hover { background: var(--red); color: #fff; }
+
+  .sim-log-row { display: flex; align-items: center; gap: 8px; padding: 8px 0; border-bottom: 1px solid var(--border); font-size: 12px; flex-wrap: wrap; }
+  .sim-log-row:last-child { border-bottom: none; }
+  .w-tag { background: rgba(58,158,95,0.15); color: var(--green); border: 1px solid rgba(58,158,95,0.3); padding: 1px 7px; border-radius: 20px; font-size: 10px; font-weight: 700; flex-shrink: 0; letter-spacing: 0.04em; }
+  .sim-winner { font-weight: 600; color: var(--text); }
+  .sim-loser { color: var(--text2); }
+  .sim-method { color: var(--text3); font-size: 11px; }
+  .elo-chg { margin-left: auto; display: flex; gap: 8px; }
+
+  /* Custom autocomplete fighter picker */
+  .fighter-picker { position: relative; width: 100%; margin-bottom: 10px; }
+  .fighter-input {
+    width: 100%;
+    background: var(--bg3);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    color: var(--text);
+    font-family: 'Barlow', sans-serif;
+    font-size: 13px;
+    padding: 8px 32px 8px 10px;
+    outline: none;
+    cursor: pointer;
+    transition: border-color 0.15s;
+  }
+  .fighter-input:focus { border-color: var(--border2); }
+  .fighter-input::placeholder { color: var(--text3); }
+  .picker-arrow {
+    position: absolute; right: 10px; top: 50%; transform: translateY(-50%);
+    color: var(--text3); font-size: 10px; pointer-events: none;
+  }
+  .fighter-dropdown {
+    position: absolute; top: calc(100% + 3px); left: 0; right: 0;
+    background: var(--bg2);
+    border: 1px solid var(--border2);
+    border-radius: var(--radius);
+    max-height: 240px;
+    overflow-y: auto;
+    z-index: 1000;
+    display: none;
+    scrollbar-width: thin;
+    scrollbar-color: var(--border2) transparent;
+  }
+  .fighter-dropdown.open { display: block; }
+  .dropdown-item {
+    padding: 8px 10px;
+    font-size: 12px;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+    transition: background 0.1s;
+  }
+  .dropdown-item:last-child { border-bottom: none; }
+  .dropdown-item:hover, .dropdown-item.highlighted { background: var(--bg3); }
+  .dropdown-item.selected { background: var(--bg3); }
+  .di-name { font-weight: 500; color: var(--text); flex: 1; }
+  .di-name mark { background: none; color: var(--red); font-weight: 700; }
+  .di-div { font-size: 10px; color: var(--text3); white-space: nowrap; }
+  .di-elo { font-size: 10px; color: var(--gold); font-weight: 600; white-space: nowrap; }
+  .dropdown-empty { padding: 12px 10px; font-size: 12px; color: var(--text3); text-align: center; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    &#9650; UFC <span class="logo-dot">ELO</span>
+  </div>
+  <span class="badge">PREDICTOR</span>
+  <span class="fighter-count" id="fCount"></span>
+</div>
+
+<div class="main">
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('predict')">Predict</button>
+    <button class="tab" onclick="switchTab('rankings')">Rankings</button>
+    <button class="tab" onclick="switchTab('simulate')">Simulate</button>
+  </div>
+
+  <!-- PREDICT -->
+  <div id="panel-predict" class="panel active">
+    <div class="div-filter" id="divFilter"></div>
+    <div class="corners">
+      <div class="corner-card red-card">
+        <div class="corner-label label-red">&#9632; Red Corner</div>
+        <div class="fighter-picker" id="pickerA">
+          <input class="fighter-input" id="inputA" type="text" placeholder="Search fighter…" autocomplete="off">
+          <span class="picker-arrow">&#9660;</span>
+          <div class="fighter-dropdown" id="dropA"></div>
+        </div>
+        <div id="infoA"></div>
+      </div>
+      <div class="vs-col"><span class="vs-text">VS</span></div>
+      <div class="corner-card blue-card">
+        <div class="corner-label label-blue">&#9632; Blue Corner</div>
+        <div class="fighter-picker" id="pickerB">
+          <input class="fighter-input" id="inputB" type="text" placeholder="Search fighter…" autocomplete="off">
+          <span class="picker-arrow">&#9660;</span>
+          <div class="fighter-dropdown" id="dropB"></div>
+        </div>
+        <div id="infoB"></div>
+      </div>
+    </div>
+    <button class="predict-btn" onclick="runPredict()">&#9654; Analyse Matchup</button>
+    <div id="results"></div>
+  </div>
+
+  <!-- RANKINGS -->
+  <div id="panel-rankings" class="panel">
+    <div class="div-filter" id="rankDivFilter"></div>
+    <div class="section">
+      <div class="sec-title" id="rankTitle">Rankings</div>
+      <table class="rank-table">
+        <thead><tr>
+          <th>#</th><th>Fighter</th><th>Elo</th><th>Record</th><th>Streak</th><th>Form</th>
+        </tr></thead>
+        <tbody id="rankBody"></tbody>
+      </table>
+    </div>
+  </div>
+
+  <!-- SIMULATE -->
+  <div id="panel-simulate" class="panel">
+    <div class="section">
+      <div class="sec-title">Live Elo Simulation</div>
+      <p style="font-size:12px;color:var(--text2);margin-bottom:12px">Simulate fights — Elo ratings, records and form update in real time</p>
+      <div class="sim-controls">
+        <div class="fighter-picker" id="pickerSA" style="flex:1;min-width:140px;">
+          <input class="fighter-input" id="inputSA" type="text" placeholder="Fighter A…" autocomplete="off">
+          <span class="picker-arrow">&#9660;</span>
+          <div class="fighter-dropdown" id="dropSA"></div>
+        </div>
+        <span style="font-size:12px;color:var(--text3)">vs</span>
+        <div class="fighter-picker" id="pickerSB" style="flex:1;min-width:140px;">
+          <input class="fighter-input" id="inputSB" type="text" placeholder="Fighter B…" autocomplete="off">
+          <span class="picker-arrow">&#9660;</span>
+          <div class="fighter-dropdown" id="dropSB"></div>
+        </div>
+        <select id="simMethod">
+          <option value="auto">Random outcome</option>
+          <option value="ko">Force KO/TKO</option>
+          <option value="sub">Force Submission</option>
+          <option value="dec">Force Decision</option>
+        </select>
+        <button class="sim-btn go" onclick="simFight()">&#9654; Simulate</button>
+        <button class="sim-btn" onclick="resetElo()">&#8635; Reset</button>
+      </div>
+      <div id="simLog"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+const BASE = [
+  {name:"Jon Jones",div:"Heavyweight",elo:1892,w:28,l:1,nc:1,ko:.52,sub:.15,dec:.33,streak:3,age:37,reach:84,form:"WWWLL"},
+  {name:"Tom Aspinall",div:"Heavyweight",elo:1892,w:15,l:3,nc:1,ko:.60,sub:.27,dec:.13,streak:4,age:31,reach:78,form:"LWWWW"},
+  {name:"Stipe Miocic",div:"Heavyweight",elo:1762,w:20,l:4,nc:0,ko:.50,sub:.05,dec:.45,streak:-2,age:41,reach:80,form:"LLWWW"},
+  {name:"Ciryl Gane",div:"Heavyweight",elo:1874,w:13,l:2,nc:1,ko:.31,sub:.23,dec:.46,streak:1,age:34,reach:84,form:"LWLWN"},
+  {name:"Sergei Pavlovich",div:"Heavyweight",elo:1838,w:20,l:3,nc:0,ko:.89,sub:.05,dec:.06,streak:2,age:31,reach:80,form:"WLLWW"},
+  {name:"Jailton Almeida",div:"Heavyweight",elo:1688,w:22,l:4,nc:0,ko:.30,sub:.60,dec:.10,streak:-1,age:32,reach:80,form:"WWWWL"},
+  {name:"Curtis Blaydes",div:"Heavyweight",elo:1766,w:19,l:6,nc:1,ko:.44,sub:.11,dec:.45,streak:-1,age:33,reach:80,form:"LWLWL"},
+  {name:"Alexander Volkov",div:"Heavyweight",elo:1856,w:40,l:11,nc:0,ko:.57,sub:.11,dec:.32,streak:2,age:37,reach:85,form:"WWLWW"},
+  {name:"Derrick Lewis",div:"Heavyweight",elo:1730,w:29,l:13,nc:1,ko:.96,sub:.00,dec:.04,streak:-1,age:39,reach:79,form:"LWWWL"},
+  {name:"Tai Tuivasa",div:"Heavyweight",elo:1634,w:14,l:10,nc:0,ko:.80,sub:.00,dec:.20,streak:-5,age:31,reach:76,form:"LLLLL"},
+  {name:"Marcin Tybura",div:"Heavyweight",elo:1676,w:27,l:11,nc:0,ko:.42,sub:.16,dec:.42,streak:-2,age:37,reach:79,form:"WWWLL"},
+  {name:"Shamil Gaziev",div:"Heavyweight",elo:1644,w:14,l:3,nc:0,ko:.71,sub:.14,dec:.15,streak:-1,age:29,reach:77,form:"WWWWL"},
+  {name:"Justin Tafa",div:"Heavyweight",elo:1598,w:8,l:3,nc:0,ko:.88,sub:.00,dec:.12,streak:1,age:30,reach:78,form:"WLWWL"},
+  {name:"Rodrigo Nascimento",div:"Heavyweight",elo:1588,w:14,l:2,nc:0,ko:.50,sub:.42,dec:.08,streak:2,age:30,reach:80,form:"WWWLW"},
+  {name:"Waldo Cortes-Acosta",div:"Heavyweight",elo:1820,w:17,l:3,nc:0,ko:.73,sub:.09,dec:.18,streak:-1,age:31,reach:79,form:"WWWWL"},
+  {name:"Martin Buday",div:"Heavyweight",elo:1558,w:13,l:4,nc:0,ko:.54,sub:.15,dec:.31,streak:-1,age:31,reach:76,form:"LWWWW"},
+  {name:"Alexandr Romanov",div:"Heavyweight",elo:1568,w:17,l:3,nc:0,ko:.35,sub:.53,dec:.12,streak:-1,age:32,reach:78,form:"LWWWW"},
+  {name:"Jhonata Diniz",div:"Heavyweight",elo:1548,w:17,l:2,nc:0,ko:.47,sub:.35,dec:.18,streak:1,age:33,reach:81,form:"WWLWW"},
+  {name:"Ilir Latifi",div:"Heavyweight",elo:1538,w:15,l:8,nc:0,ko:.60,sub:.13,dec:.27,streak:-1,age:42,reach:72,form:"LWWLW"},
+  {name:"Parker Porter",div:"Heavyweight",elo:1528,w:19,l:9,nc:0,ko:.44,sub:.22,dec:.34,streak:1,age:36,reach:77,form:"WLWWL"},
+  {name:"Alex Pereira",div:"Light Heavyweight",elo:1784,w:13,l:3,nc:0,ko:.75,sub:.08,dec:.17,streak:1,age:36,reach:79,form:"WWWLW"},
+  {name:"Magomed Ankalaev",div:"Light Heavyweight",elo:1802,w:20,l:2,nc:1,ko:.47,sub:.21,dec:.32,streak:-1,age:31,reach:75,form:"WWWWL"},
+  {name:"Jiri Prochazka",div:"Light Heavyweight",elo:1766,w:32,l:6,nc:1,ko:.80,sub:.07,dec:.13,streak:-1,age:32,reach:80,form:"WWWWL"},
+  {name:"Jamahal Hill",div:"Light Heavyweight",elo:1712,w:12,l:4,nc:0,ko:.75,sub:.00,dec:.25,streak:-3,age:33,reach:84,form:"WWLLL"},
+  {name:"Aleksandar Rakic",div:"Light Heavyweight",elo:1604,w:14,l:6,nc:0,ko:.57,sub:.14,dec:.29,streak:-1,age:32,reach:78,form:"WWWWL"},
+  {name:"Jan Blachowicz",div:"Light Heavyweight",elo:1748,w:29,l:11,nc:2,ko:.48,sub:.17,dec:.35,streak:-2,age:41,reach:78,form:"WNDLL"},
+  {name:"Khalil Rountree",div:"Light Heavyweight",elo:1730,w:14,l:7,nc:0,ko:.83,sub:.00,dec:.17,streak:-1,age:33,reach:76,form:"WWLWL"},
+  {name:"Nikita Krylov",div:"Light Heavyweight",elo:1586,w:31,l:11,nc:0,ko:.52,sub:.30,dec:.18,streak:-2,age:33,reach:76,form:"WWWLL"},
+  {name:"Carlos Ulberg",div:"Light Heavyweight",elo:1820,w:14,l:1,nc:0,ko:.73,sub:.09,dec:.18,streak:5,age:32,reach:78,form:"WWWWW"},
+  {name:"Johnny Walker",div:"Light Heavyweight",elo:1568,w:22,l:10,nc:1,ko:.71,sub:.10,dec:.19,streak:-1,age:31,reach:83,form:"WWWWL"},
+  {name:"Volkan Oezdemir",div:"Light Heavyweight",elo:1658,w:21,l:8,nc:0,ko:.63,sub:.00,dec:.37,streak:-1,age:34,reach:77,form:"WWLWL"},
+  {name:"Ryan Spann",div:"Light Heavyweight",elo:1611,w:24,l:11,nc:0,ko:.64,sub:.14,dec:.22,streak:-2,age:34,reach:77,form:"WWWLL"},
+  {name:"Anthony Smith",div:"Light Heavyweight",elo:1601,w:22,l:8,nc:0,ko:.45,sub:.37,dec:.18,streak:-1,age:35,reach:76,form:"WWWWL"},
+  {name:"Da-un Jung",div:"Light Heavyweight",elo:1618,w:17,l:5,nc:0,ko:.59,sub:.06,dec:.35,streak:1,age:34,reach:77,form:"LWWWW"},
+  {name:"Dominick Reyes",div:"Light Heavyweight",elo:1622,w:16,l:5,nc:0,ko:.47,sub:.07,dec:.46,streak:-1,age:34,reach:77,form:"LLWWL"},
+  {name:"Bogdan Guskov",div:"Light Heavyweight",elo:1640,w:18,l:3,nc:1,ko:.53,sub:.20,dec:.27,streak:3,age:33,reach:77,form:"LWWWW"},
+  {name:"Ovince Saint Preux",div:"Light Heavyweight",elo:1578,w:30,l:17,nc:0,ko:.55,sub:.28,dec:.17,streak:-2,age:41,reach:79,form:"WWWLL"},
+  {name:"Alonzo Menifield",div:"Light Heavyweight",elo:1550,w:17,l:6,nc:1,ko:.79,sub:.07,dec:.14,streak:-1,age:34,reach:76,form:"WWWWL"},
+  {name:"Vitor Petrino",div:"Light Heavyweight",elo:1581,w:12,l:1,nc:0,ko:.67,sub:.08,dec:.25,streak:2,age:28,reach:79,form:"LWWWW"},
+  {name:"Islam Makhachev",div:"Welterweight",elo:1885,w:28,l:1,nc:0,ko:.15,sub:.62,dec:.23,streak:5,age:32,reach:70,form:"WWWWW"},
+  {name:"Ilia Topuria",div:"Lightweight",elo:1820,w:17,l:0,nc:0,ko:.65,sub:.24,dec:.11,streak:7,age:28,reach:71,form:"WWWWW"},
+  {name:"Charles Oliveira",div:"Lightweight",elo:1766,w:37,l:11,nc:1,ko:.24,sub:.67,dec:.09,streak:1,age:35,reach:74,form:"LWWWW"},
+  {name:"Max Holloway",div:"Lightweight",elo:1748,w:27,l:9,nc:0,ko:.35,sub:.04,dec:.56,streak:-1,age:33,reach:69,form:"LWWWL"},
+  {name:"Dustin Poirier",div:"Lightweight",elo:1731,w:30,l:10,nc:1,ko:.48,sub:.17,dec:.35,streak:-2,age:36,reach:72,form:"LLWWL"},
+  {name:"Justin Gaethje",div:"Lightweight",elo:1802,w:27,l:5,nc:0,ko:.56,sub:.04,dec:.40,streak:2,age:37,reach:70,form:"LWWWW"},
+  {name:"Arman Tsarukyan",div:"Lightweight",elo:1784,w:23,l:3,nc:0,ko:.27,sub:.27,dec:.46,streak:2,age:27,reach:70,form:"LWWWW"},
+  {name:"Michael Chandler",div:"Lightweight",elo:1586,w:23,l:10,nc:0,ko:.57,sub:.13,dec:.30,streak:-1,age:38,reach:69,form:"WWWWL"},
+  {name:"Conor McGregor",div:"Lightweight",elo:1692,w:22,l:6,nc:0,ko:.73,sub:.00,dec:.27,streak:-2,age:36,reach:74,form:"LLWWW"},
+  {name:"Beneil Dariush",div:"Lightweight",elo:1550,w:23,l:8,nc:0,ko:.22,sub:.48,dec:.30,streak:-1,age:35,reach:71,form:"WWWWL"},
+  {name:"Rafael Fiziev",div:"Lightweight",elo:1622,w:13,l:5,nc:0,ko:.67,sub:.00,dec:.33,streak:-1,age:31,reach:72,form:"WWWWL"},
+  {name:"Mateusz Gamrot",div:"Lightweight",elo:1694,w:26,l:4,nc:1,ko:.22,sub:.35,dec:.43,streak:2,age:32,reach:72,form:"LWWWW"},
+  {name:"Renato Moicano",div:"Lightweight",elo:1658,w:21,l:7,nc:1,ko:.20,sub:.55,dec:.25,streak:2,age:33,reach:71,form:"LWWWW"},
+  {name:"Dan Hooker",div:"Lightweight",elo:1676,w:24,l:14,nc:0,ko:.52,sub:.17,dec:.31,streak:-1,age:34,reach:74,form:"WWWWL"},
+  {name:"Paddy Pimblett",div:"Lightweight",elo:1712,w:23,l:4,nc:0,ko:.27,sub:.50,dec:.23,streak:-1,age:29,reach:73,form:"WWWWL"},
+  {name:"Jalin Turner",div:"Lightweight",elo:1631,w:14,l:6,nc:0,ko:.54,sub:.31,dec:.15,streak:-1,age:30,reach:76,form:"LWWWL"},
+  {name:"Nate Diaz",div:"Lightweight",elo:1612,w:21,l:13,nc:0,ko:.19,sub:.43,dec:.38,streak:-1,age:39,reach:76,form:"LWWLW"},
+  {name:"Bobby Green",div:"Lightweight",elo:1638,w:29,l:15,nc:1,ko:.37,sub:.07,dec:.56,streak:1,age:37,reach:70,form:"WLWWL"},
+  {name:"Joel Alvarez",div:"Lightweight",elo:1621,w:23,l:4,nc:0,ko:.27,sub:.59,dec:.14,streak:1,age:31,reach:72,form:"WLWWW"},
+  {name:"Joaquim Silva",div:"Lightweight",elo:1608,w:16,l:4,nc:0,ko:.69,sub:.06,dec:.25,streak:1,age:32,reach:72,form:"WWLWW"},
+  {name:"Tony Ferguson",div:"Lightweight",elo:1601,w:25,l:10,nc:0,ko:.32,sub:.44,dec:.24,streak:-6,age:40,reach:76,form:"LLLLL"},
+  {name:"Fares Ziam",div:"Lightweight",elo:1568,w:18,l:4,nc:0,ko:.43,sub:.21,dec:.36,streak:1,age:31,reach:73,form:"LWWWW"},
+  {name:"Drakkar Klose",div:"Lightweight",elo:1591,w:14,l:5,nc:1,ko:.21,sub:.14,dec:.65,streak:1,age:34,reach:72,form:"WNWWL"},
+  {name:"Terrance McKinney",div:"Lightweight",elo:1584,w:15,l:7,nc:0,ko:.47,sub:.33,dec:.20,streak:-1,age:30,reach:71,form:"LWWWL"},
+  {name:"Drew Dober",div:"Lightweight",elo:1578,w:28,l:14,nc:0,ko:.54,sub:.15,dec:.31,streak:-1,age:35,reach:70,form:"LWWLW"},
+  {name:"Grant Dawson",div:"Lightweight",elo:1571,w:23,l:3,nc:0,ko:.14,sub:.48,dec:.38,streak:2,age:31,reach:71,form:"WWWNW"},
+  {name:"Marc Diakiese",div:"Lightweight",elo:1561,w:17,l:6,nc:0,ko:.41,sub:.24,dec:.35,streak:1,age:31,reach:72,form:"WLLWW"},
+  {name:"Leon Edwards",div:"Welterweight",elo:1759,w:22,l:6,nc:0,ko:.27,sub:.09,dec:.64,streak:-2,age:34,reach:74,form:"WWWLL"},
+  {name:"Kamaru Usman",div:"Welterweight",elo:1741,w:21,l:4,nc:0,ko:.35,sub:.20,dec:.45,streak:1,age:38,reach:76,form:"LLLWW"},
+  {name:"Shavkat Rakhmonov",div:"Welterweight",elo:1615,w:19,l:0,nc:0,ko:.39,sub:.50,dec:.11,streak:5,age:30,reach:75,form:"WWWWW"},
+  {name:"Belal Muhammad",div:"Welterweight",elo:1795,w:24,l:5,nc:0,ko:.13,sub:.35,dec:.52,streak:-2,age:37,reach:74,form:"WWWLL"},
+  {name:"Colby Covington",div:"Welterweight",elo:1701,w:17,l:5,nc:0,ko:.12,sub:.06,dec:.82,streak:-2,age:37,reach:72,form:"WWWLL"},
+  {name:"Ian Machado Garry",div:"Welterweight",elo:1867,w:17,l:1,nc:0,ko:.40,sub:.13,dec:.47,streak:5,age:27,reach:74,form:"WWWWW"},
+  {name:"Jack Della Maddalena",div:"Welterweight",elo:1813,w:18,l:4,nc:0,ko:.69,sub:.06,dec:.25,streak:-2,age:29,reach:74,form:"WWWLL"},
+  {name:"Sean Brady",div:"Welterweight",elo:1777,w:19,l:2,nc:0,ko:.12,sub:.47,dec:.41,streak:1,age:32,reach:72,form:"WWWLW"},
+  {name:"Vicente Luque",div:"Welterweight",elo:1661,w:22,l:9,nc:0,ko:.41,sub:.32,dec:.27,streak:-1,age:32,reach:74,form:"WWWWL"},
+  {name:"Geoff Neal",div:"Welterweight",elo:1644,w:16,l:8,nc:0,ko:.63,sub:.06,dec:.31,streak:-1,age:33,reach:74,form:"WWWWL"},
+  {name:"Gilbert Burns",div:"Welterweight",elo:1628,w:22,l:9,nc:0,ko:.27,sub:.41,dec:.32,streak:-1,age:37,reach:72,form:"WWWWL"},
+  {name:"Michael Morales",div:"Welterweight",elo:1831,w:19,l:0,nc:0,ko:.63,sub:.19,dec:.18,streak:7,age:26,reach:74,form:"WWWWW"},
+  {name:"Joaquin Buckley",div:"Welterweight",elo:1723,w:21,l:8,nc:0,ko:.67,sub:.05,dec:.28,streak:-2,age:31,reach:74,form:"WWWLL"},
+  {name:"Carlos Prates",div:"Welterweight",elo:1849,w:24,l:7,nc:0,ko:.72,sub:.06,dec:.22,streak:4,age:33,reach:74,form:"LWWWW"},
+  {name:"Jorge Masvidal",div:"Welterweight",elo:1638,w:35,l:16,nc:0,ko:.51,sub:.14,dec:.35,streak:-3,age:39,reach:74,form:"WWLLL"},
+  {name:"Michael Chiesa",div:"Welterweight",elo:1621,w:18,l:7,nc:0,ko:.06,sub:.53,dec:.41,streak:-1,age:36,reach:76,form:"LWWWL"},
+  {name:"Kevin Holland",div:"Welterweight",elo:1618,w:26,l:12,nc:1,ko:.38,sub:.31,dec:.31,streak:1,age:31,reach:79,form:"LWWWW"},
+  {name:"Neil Magny",div:"Welterweight",elo:1631,w:30,l:13,nc:0,ko:.21,sub:.21,dec:.58,streak:1,age:36,reach:80,form:"WLWWL"},
+  {name:"Randy Brown",div:"Welterweight",elo:1608,w:18,l:6,nc:0,ko:.39,sub:.17,dec:.44,streak:2,age:33,reach:75,form:"LWWWW"},
+  {name:"Niko Price",div:"Welterweight",elo:1601,w:16,l:8,nc:2,ko:.44,sub:.25,dec:.31,streak:-1,age:34,reach:74,form:"LWWNW"},
+  {name:"Alex Morono",div:"Welterweight",elo:1594,w:23,l:8,nc:0,ko:.35,sub:.17,dec:.48,streak:1,age:33,reach:74,form:"LWWWW"},
+  {name:"Ramiz Brahimaj",div:"Welterweight",elo:1568,w:12,l:5,nc:0,ko:.17,sub:.67,dec:.16,streak:1,age:31,reach:72,form:"WWLWW"},
+  {name:"Dricus Du Plessis",div:"Middleweight",elo:1754,w:23,l:3,nc:0,ko:.41,sub:.27,dec:.32,streak:-1,age:30,reach:76,form:"WWWWL"},
+  {name:"Israel Adesanya",div:"Middleweight",elo:1628,w:24,l:6,nc:0,ko:.33,sub:.08,dec:.59,streak:-3,age:36,reach:80,form:"WWLLL"},
+  {name:"Khamzat Chimaev",div:"Middleweight",elo:1772,w:15,l:1,nc:0,ko:.31,sub:.38,dec:.31,streak:-1,age:31,reach:78,form:"WWWWL"},
+  {name:"Robert Whittaker",div:"Middleweight",elo:1610,w:26,l:9,nc:0,ko:.36,sub:.16,dec:.48,streak:-1,age:34,reach:74,form:"WWWWL"},
+  {name:"Sean Strickland",div:"Middleweight",elo:1790,w:31,l:7,nc:0,ko:.25,sub:.11,dec:.64,streak:1,age:33,reach:76,form:"LWWWW"},
+  {name:"Paulo Costa",div:"Middleweight",elo:1538,w:16,l:4,nc:0,ko:.57,sub:.07,dec:.36,streak:2,age:33,reach:72,form:"LWWWW"},
+  {name:"Marvin Vettori",div:"Middleweight",elo:1688,w:19,l:6,nc:0,ko:.16,sub:.16,dec:.68,streak:-1,age:31,reach:74,form:"WWWWL"},
+  {name:"Caio Borralho",div:"Middleweight",elo:1709,w:18,l:2,nc:1,ko:.19,sub:.38,dec:.43,streak:-1,age:31,reach:75,form:"WWWWL"},
+  {name:"Brendan Allen",div:"Middleweight",elo:1718,w:26,l:7,nc:0,ko:.22,sub:.48,dec:.30,streak:2,age:30,reach:77,form:"WWWLW"},
+  {name:"Bo Nickal",div:"Middleweight",elo:1658,w:8,l:1,nc:0,ko:.14,sub:.71,dec:.15,streak:-1,age:28,reach:76,form:"WWWWL"},
+  {name:"Joe Pyfer",div:"Middleweight",elo:1682,w:16,l:3,nc:0,ko:.55,sub:.27,dec:.18,streak:4,age:27,reach:75,form:"LWWWW"},
+  {name:"Nassourdine Imavov",div:"Middleweight",elo:1736,w:17,l:4,nc:1,ko:.29,sub:.21,dec:.50,streak:5,age:28,reach:76,form:"WWWWW"},
+  {name:"Ikram Aliskerov",div:"Middleweight",elo:1638,w:17,l:2,nc:0,ko:.40,sub:.47,dec:.13,streak:2,age:29,reach:74,form:"LWWWW"},
+  {name:"Chris Curtis",div:"Middleweight",elo:1648,w:31,l:10,nc:0,ko:.55,sub:.06,dec:.39,streak:1,age:36,reach:72,form:"LWWWW"},
+  {name:"Michel Pereira",div:"Middleweight",elo:1628,w:30,l:11,nc:0,ko:.47,sub:.20,dec:.33,streak:1,age:32,reach:77,form:"LWWWW"},
+  {name:"Gregory Rodrigues",div:"Middleweight",elo:1574,w:19,l:6,nc:0,ko:.50,sub:.21,dec:.29,streak:2,age:31,reach:76,form:"LWWWW"},
+  {name:"Roman Dolidze",div:"Middleweight",elo:1520,w:15,l:5,nc:0,ko:.42,sub:.25,dec:.33,streak:-2,age:35,reach:77,form:"WWWLL"},
+  {name:"Reinier de Ridder",div:"Middleweight",elo:1646,w:21,l:4,nc:0,ko:.12,sub:.65,dec:.23,streak:-2,age:33,reach:80,form:"WWWLL"},
+  {name:"Jack Hermansson",div:"Middleweight",elo:1601,w:24,l:9,nc:0,ko:.33,sub:.42,dec:.25,streak:-2,age:36,reach:77,form:"WWWLL"},
+  {name:"Abusupiyan Magomedov",div:"Middleweight",elo:1608,w:19,l:1,nc:0,ko:.37,sub:.47,dec:.16,streak:3,age:31,reach:75,form:"LWWWW"},
+  {name:"Alexander Volkanovski",div:"Featherweight",elo:1821,w:28,l:4,nc:0,ko:.31,sub:.15,dec:.54,streak:2,age:37,reach:71,form:"WLLWW"},
+  {name:"Brian Ortega",div:"Featherweight",elo:1623,w:16,l:5,nc:1,ko:.31,sub:.56,dec:.13,streak:-1,age:33,reach:69,form:"WWWWL"},
+  {name:"Josh Emmett",div:"Featherweight",elo:1551,w:19,l:6,nc:0,ko:.61,sub:.06,dec:.33,streak:-1,age:38,reach:65,form:"WWWWL"},
+  {name:"Movsar Evloev",div:"Featherweight",elo:1803,w:20,l:0,nc:0,ko:.18,sub:.24,dec:.58,streak:7,age:29,reach:70,form:"WWWWW"},
+  {name:"Arnold Allen",div:"Featherweight",elo:1695,w:21,l:4,nc:0,ko:.37,sub:.21,dec:.42,streak:1,age:31,reach:71,form:"LWWWL"},
+  {name:"Diego Lopes",div:"Featherweight",elo:1785,w:27,l:8,nc:0,ko:.38,sub:.42,dec:.20,streak:-1,age:29,reach:72,form:"WWWWL"},
+  {name:"Yair Rodriguez",div:"Featherweight",elo:1731,w:20,l:5,nc:1,ko:.50,sub:.19,dec:.31,streak:-1,age:32,reach:71,form:"LWWWL"},
+  {name:"Lerone Murphy",div:"Featherweight",elo:1767,w:17,l:1,nc:1,ko:.40,sub:.20,dec:.40,streak:-1,age:32,reach:74,form:"WNNWL"},
+  {name:"Calvin Kattar",div:"Featherweight",elo:1635,w:24,l:8,nc:0,ko:.38,sub:.08,dec:.54,streak:-2,age:37,reach:72,form:"LWWLL"},
+  {name:"Giga Chikadze",div:"Featherweight",elo:1621,w:14,l:4,nc:0,ko:.71,sub:.00,dec:.29,streak:-1,age:33,reach:71,form:"LWWWL"},
+  {name:"Patricio Pitbull",div:"Featherweight",elo:1624,w:37,l:9,nc:0,ko:.44,sub:.19,dec:.37,streak:1,age:35,reach:71,form:"WLWWL"},
+  {name:"Edson Barboza",div:"Featherweight",elo:1611,w:25,l:11,nc:0,ko:.54,sub:.04,dec:.42,streak:1,age:37,reach:75,form:"WLWWL"},
+  {name:"Sodiq Yusuff",div:"Featherweight",elo:1618,w:15,l:3,nc:0,ko:.50,sub:.07,dec:.43,streak:1,age:30,reach:71,form:"WLLWW"},
+  {name:"Shane Burgos",div:"Featherweight",elo:1614,w:16,l:4,nc:0,ko:.44,sub:.06,dec:.50,streak:-1,age:32,reach:68,form:"LWWWL"},
+  {name:"Dan Ige",div:"Featherweight",elo:1608,w:17,l:8,nc:0,ko:.41,sub:.12,dec:.47,streak:-1,age:33,reach:69,form:"LWWLW"},
+  {name:"Jonathan Martinez",div:"Featherweight",elo:1604,w:19,l:5,nc:0,ko:.42,sub:.21,dec:.37,streak:1,age:31,reach:70,form:"WLLWW"},
+  {name:"Damon Jackson",div:"Featherweight",elo:1584,w:22,l:7,nc:0,ko:.23,sub:.41,dec:.36,streak:1,age:35,reach:72,form:"WLNWW"},
+  {name:"Pat Sabatini",div:"Featherweight",elo:1578,w:19,l:5,nc:0,ko:.06,sub:.61,dec:.33,streak:1,age:31,reach:70,form:"WLWWW"},
+  {name:"Lucas Almeida",div:"Featherweight",elo:1598,w:15,l:5,nc:0,ko:.56,sub:.19,dec:.25,streak:2,age:28,reach:72,form:"WWWLW"},
+  {name:"Petr Yan",div:"Bantamweight",elo:1762,w:20,l:5,nc:0,ko:.47,sub:.11,dec:.42,streak:2,age:32,reach:67,form:"LWWWW"},
+  {name:"Sean O'Malley",div:"Bantamweight",elo:1708,w:18,l:3,nc:0,ko:.67,sub:.11,dec:.22,streak:2,age:30,reach:71,form:"LWWWW"},
+  {name:"Merab Dvalishvili",div:"Bantamweight",elo:1744,w:21,l:4,nc:0,ko:.12,sub:.35,dec:.53,streak:-1,age:34,reach:67,form:"WWWWL"},
+  {name:"Cory Sandhagen",div:"Bantamweight",elo:1690,w:18,l:6,nc:0,ko:.47,sub:.18,dec:.35,streak:-1,age:32,reach:70,form:"WWWWL"},
+  {name:"Umar Nurmagomedov",div:"Bantamweight",elo:1726,w:20,l:1,nc:0,ko:.24,sub:.47,dec:.29,streak:5,age:27,reach:67,form:"WWWWW"},
+  {name:"Henry Cejudo",div:"Bantamweight",elo:1698,w:16,l:4,nc:0,ko:.31,sub:.31,dec:.38,streak:-1,age:37,reach:64,form:"LWWWW"},
+  {name:"Marlon Vera",div:"Bantamweight",elo:1582,w:22,l:10,nc:0,ko:.36,sub:.32,dec:.32,streak:-1,age:31,reach:67,form:"WWWWL"},
+  {name:"Deiveson Figueiredo",div:"Bantamweight",elo:1636,w:25,l:5,nc:2,ko:.38,sub:.33,dec:.29,streak:-1,age:36,reach:66,form:"WWWWL"},
+  {name:"Song Yadong",div:"Bantamweight",elo:1672,w:24,l:7,nc:2,ko:.36,sub:.14,dec:.50,streak:-1,age:26,reach:68,form:"WWWWL"},
+  {name:"Raphael Assuncao",div:"Bantamweight",elo:1608,w:28,l:10,nc:0,ko:.25,sub:.18,dec:.57,streak:-2,age:40,reach:67,form:"LLWWL"},
+  {name:"Said Nurmagomedov",div:"Bantamweight",elo:1628,w:18,l:2,nc:0,ko:.41,sub:.35,dec:.24,streak:2,age:31,reach:67,form:"WWWLW"},
+  {name:"Mario Bautista",div:"Bantamweight",elo:1618,w:14,l:3,nc:0,ko:.33,sub:.42,dec:.25,streak:3,age:31,reach:68,form:"LWWWW"},
+  {name:"Rob Font",div:"Bantamweight",elo:1648,w:20,l:9,nc:0,ko:.30,sub:.10,dec:.60,streak:-2,age:36,reach:68,form:"LLWWW"},
+  {name:"Dominick Cruz",div:"Bantamweight",elo:1641,w:25,l:7,nc:0,ko:.08,sub:.08,dec:.84,streak:-2,age:39,reach:68,form:"LLWWL"},
+  {name:"Ricky Simon",div:"Bantamweight",elo:1618,w:22,l:4,nc:0,ko:.18,sub:.41,dec:.41,streak:1,age:32,reach:67,form:"WLLWW"},
+  {name:"Pedro Munhoz",div:"Bantamweight",elo:1601,w:20,l:11,nc:1,ko:.35,sub:.30,dec:.35,streak:-2,age:37,reach:66,form:"LLWWL"},
+  {name:"Kyler Phillips",div:"Bantamweight",elo:1594,w:11,l:4,nc:0,ko:.18,sub:.27,dec:.55,streak:-1,age:28,reach:68,form:"LWWWL"},
+  {name:"Miles Johns",div:"Bantamweight",elo:1588,w:16,l:2,nc:0,ko:.25,sub:.31,dec:.44,streak:2,age:30,reach:68,form:"WWWLW"},
+  {name:"Chris Gutierrez",div:"Bantamweight",elo:1581,w:19,l:4,nc:0,ko:.26,sub:.05,dec:.69,streak:1,age:33,reach:69,form:"WNWWL"},
+  {name:"Raoni Barcelos",div:"Bantamweight",elo:1510,w:18,l:5,nc:0,ko:.25,sub:.31,dec:.44,streak:1,age:35,reach:67,form:"LWWWW"},
+  {name:"Joshua Van",div:"Flyweight",elo:1748,w:17,l:2,nc:0,ko:.53,sub:.20,dec:.27,streak:3,age:29,reach:67,form:"LWWWW"},
+  {name:"Alexandre Pantoja",div:"Flyweight",elo:1730,w:30,l:6,nc:0,ko:.21,sub:.46,dec:.33,streak:-1,age:35,reach:66,form:"WWWWL"},
+  {name:"Amir Albazi",div:"Flyweight",elo:1622,w:17,l:3,nc:0,ko:.18,sub:.47,dec:.35,streak:-1,age:31,reach:66,form:"WWWWL"},
+  {name:"Brandon Royval",div:"Flyweight",elo:1676,w:17,l:9,nc:0,ko:.25,sub:.56,dec:.19,streak:-2,age:32,reach:69,form:"WWWLL"},
+  {name:"Manel Kape",div:"Flyweight",elo:1712,w:22,l:7,nc:0,ko:.55,sub:.20,dec:.25,streak:3,age:31,reach:67,form:"LWWWW"},
+  {name:"Tatsuro Taira",div:"Flyweight",elo:1694,w:18,l:2,nc:0,ko:.06,sub:.69,dec:.25,streak:-1,age:25,reach:66,form:"WWWWL"},
+  {name:"Kai Kara-France",div:"Flyweight",elo:1661,w:25,l:11,nc:1,ko:.48,sub:.08,dec:.44,streak:-1,age:32,reach:65,form:"LWWWL"},
+  {name:"Muhammad Mokaev",div:"Flyweight",elo:1648,w:13,l:2,nc:0,ko:.08,sub:.58,dec:.34,streak:-1,age:24,reach:64,form:"LWWWW"},
+  {name:"Steve Erceg",div:"Flyweight",elo:1568,w:13,l:4,nc:0,ko:.17,sub:.33,dec:.50,streak:-2,age:30,reach:67,form:"WWWLL"},
+  {name:"Matheus Nicolau",div:"Flyweight",elo:1641,w:20,l:4,nc:0,ko:.10,sub:.35,dec:.55,streak:1,age:32,reach:68,form:"WNWWL"},
+  {name:"David Dvorak",div:"Flyweight",elo:1634,w:20,l:6,nc:0,ko:.05,sub:.42,dec:.53,streak:1,age:31,reach:67,form:"WWLWW"},
+  {name:"Tim Elliott",div:"Flyweight",elo:1532,w:21,l:14,nc:1,ko:.26,sub:.21,dec:.53,streak:1,age:36,reach:65,form:"LWWWW"},
+  {name:"Tagir Ulanbekov",div:"Flyweight",elo:1514,w:17,l:3,nc:0,ko:.07,sub:.60,dec:.33,streak:-1,age:30,reach:65,form:"WWWWL"},
+  {name:"Victor Altamirano",div:"Flyweight",elo:1608,w:12,l:5,nc:0,ko:.36,sub:.36,dec:.28,streak:-1,age:28,reach:66,form:"LWWWL"},
+  {name:"Jake Hadley",div:"Flyweight",elo:1598,w:11,l:4,nc:0,ko:.18,sub:.55,dec:.27,streak:1,age:27,reach:65,form:"WLWWL"},
+  {name:"Cody Durden",div:"Flyweight",elo:1578,w:16,l:6,nc:2,ko:.25,sub:.44,dec:.31,streak:1,age:31,reach:67,form:"WNWWL"},
+  {name:"Francisco Figueiredo",div:"Flyweight",elo:1568,w:12,l:4,nc:0,ko:.33,sub:.42,dec:.25,streak:1,age:29,reach:65,form:"WLLWW"},
+  {name:"Casey O'Neill",div:"Flyweight",elo:1633,w:10,l:2,nc:0,ko:.20,sub:.50,dec:.30,streak:-1,age:26,reach:66,form:"LWWWW"},
+  {name:"Zhang Weili",div:"Women's Strawweight",elo:1780,w:26,l:4,nc:0,ko:.38,sub:.17,dec:.45,streak:2,age:35,reach:63,form:"LWWWW"},
+  {name:"Yan Xiaonan",div:"Women's Strawweight",elo:1726,w:19,l:5,nc:0,ko:.22,sub:.11,dec:.67,streak:-1,age:34,reach:63,form:"WWWWL"},
+  {name:"Tatiana Suarez",div:"Women's Strawweight",elo:1762,w:11,l:1,nc:0,ko:.10,sub:.70,dec:.20,streak:2,age:32,reach:65,form:"LWWWW"},
+  {name:"Amanda Lemos",div:"Women's Strawweight",elo:1681,w:15,l:5,nc:1,ko:.36,sub:.29,dec:.35,streak:-1,age:36,reach:64,form:"LWWWL"},
+  {name:"Maycee Barber",div:"Women's Flyweight",elo:1741,w:15,l:2,nc:0,ko:.33,sub:.13,dec:.54,streak:3,age:26,reach:68,form:"LWWWW"},
+  {name:"Marina Rodriguez",div:"Women's Strawweight",elo:1582,w:18,l:4,nc:1,ko:.29,sub:.12,dec:.59,streak:1,age:36,reach:66,form:"WNLWW"},
+  {name:"Jessica Andrade",div:"Women's Strawweight",elo:1618,w:26,l:15,nc:0,ko:.48,sub:.16,dec:.36,streak:1,age:33,reach:62,form:"WLWWL"},
+  {name:"Mackenzie Dern",div:"Women's Strawweight",elo:1798,w:16,l:5,nc:0,ko:.07,sub:.64,dec:.29,streak:2,age:32,reach:65,form:"LWWWW"},
+  {name:"Virna Jandiroba",div:"Women's Strawweight",elo:1744,w:22,l:4,nc:0,ko:.10,sub:.55,dec:.35,streak:1,age:34,reach:64,form:"WWWWL"},
+  {name:"Luana Pinheiro",div:"Women's Strawweight",elo:1564,w:12,l:4,nc:0,ko:.17,sub:.42,dec:.41,streak:-1,age:30,reach:66,form:"LWWWL"},
+  {name:"Angela Hill",div:"Women's Strawweight",elo:1600,w:18,l:16,nc:0,ko:.19,sub:.06,dec:.75,streak:1,age:39,reach:64,form:"WLLWW"},
+  {name:"Tecia Pennington",div:"Women's Strawweight",elo:1546,w:15,l:7,nc:0,ko:.07,sub:.00,dec:.93,streak:1,age:35,reach:63,form:"WLWWL"},
+  {name:"Tabatha Ricci",div:"Women's Strawweight",elo:1654,w:12,l:3,nc:0,ko:.10,sub:.30,dec:.60,streak:1,age:28,reach:65,form:"LWWWW"},
+  {name:"Piera Rodriguez",div:"Women's Strawweight",elo:1578,w:11,l:2,nc:0,ko:.27,sub:.27,dec:.46,streak:2,age:27,reach:65,form:"WWWLW"},
+  {name:"Loopy Godinez",div:"Women's Strawweight",elo:1690,w:14,l:5,nc:0,ko:.30,sub:.40,dec:.30,streak:-1,age:30,reach:65,form:"WWWWL"},
+  {name:"Iasmin Lucindo",div:"Women's Strawweight",elo:1636,w:18,l:6,nc:0,ko:.14,sub:.29,dec:.57,streak:-1,age:29,reach:64,form:"WWWWL"},
+  {name:"Gillian Robertson",div:"Women's Strawweight",elo:1708,w:16,l:8,nc:0,ko:0.07,sub:0.53,dec:0.4,streak:5,age:30,reach:64,form:"WWLWW"},
+  {name:"Denise Gomes",div:"Women's Strawweight",elo:1528,w:12,l:3,nc:0,ko:0.25,sub:0.25,dec:0.5,streak:1,age:28,reach:65,form:"WLWWL"},
+  {name:"Fatima Kline",div:"Women's Strawweight",elo:1555,w:9,l:1,nc:0,ko:0.33,sub:0.33,dec:0.34,streak:4,age:30,reach:63,form:"WWWWL"},
+  {name:"Valentina Shevchenko",div:"Women's Flyweight",elo:1831,w:26,l:4,nc:1,ko:.33,sub:.17,dec:.50,streak:3,age:36,reach:68,form:"LWWWW"},
+  {name:"Erin Blanchfield",div:"Women's Flyweight",elo:1759,w:14,l:2,nc:0,ko:.09,sub:.64,dec:.27,streak:4,age:25,reach:65,form:"LWWWW"},
+  {name:"Manon Fiorot",div:"Women's Flyweight",elo:1795,w:13,l:2,nc:0,ko:.25,sub:.08,dec:.67,streak:-1,age:33,reach:66,form:"WWWWL"},
+  {name:"Alexa Grasso",div:"Women's Flyweight",elo:1777,w:16,l:5,nc:1,ko:.25,sub:.38,dec:.37,streak:-2,age:32,reach:64,form:"WWWLL"},
+  {name:"Taila Santos",div:"Women's Flyweight",elo:1698,w:23,l:5,nc:0,ko:.23,sub:.27,dec:.50,streak:1,age:30,reach:65,form:"WLWWW"},
+  {name:"Natalia Silva",div:"Women's Flyweight",elo:1813,w:20,l:5,nc:1,ko:.29,sub:.24,dec:.47,streak:5,age:32,reach:65,form:"WWWWW"},
+  {name:"Viviane Araujo",div:"Women's Flyweight",elo:1579,w:13,l:7,nc:0,ko:.17,sub:.17,dec:.66,streak:-1,age:36,reach:65,form:"LWWWL"},
+  {name:"Karine Silva",div:"Women's Flyweight",elo:1651,w:19,l:6,nc:0,ko:.13,sub:.69,dec:.18,streak:1,age:30,reach:64,form:"WLLWW"},
+  {name:"Katlyn Chookagian",div:"Women's Flyweight",elo:1641,w:19,l:9,nc:0,ko:.05,sub:.05,dec:.90,streak:-1,age:36,reach:68,form:"LWWWL"},
+  {name:"Tracy Cortez",div:"Women's Flyweight",elo:1687,w:12,l:3,nc:0,ko:.18,sub:.18,dec:.64,streak:-1,age:30,reach:66,form:"WWWWL"},
+  {name:"Andrea Lee",div:"Women's Flyweight",elo:1597,w:14,l:7,nc:0,ko:.29,sub:.21,dec:.50,streak:1,age:35,reach:66,form:"WLLWW"},
+  {name:"Maryna Moroz",div:"Women's Flyweight",elo:1598,w:12,l:7,nc:0,ko:.17,sub:.33,dec:.50,streak:-1,age:33,reach:65,form:"LWWLW"},
+  {name:"Jennifer Maia",div:"Women's Flyweight",elo:1561,w:20,l:11,nc:0,ko:.20,sub:.35,dec:.45,streak:-1,age:35,reach:64,form:"LWWLW"},
+  {name:"Jasmine Jasudavicius",div:"Women's Flyweight",elo:1723,w:14,l:4,nc:0,ko:0.07,sub:0.21,dec:0.72,streak:2,age:33,reach:65,form:"WWLWW"},
+  {name:"Miranda Maverick",div:"Women's Flyweight",elo:1669,w:15,l:6,nc:0,ko:0.2,sub:0.27,dec:0.53,streak:-1,age:27,reach:65,form:"LWLWL"},
+  {name:"Wang Cong",div:"Women's Flyweight",elo:1615,w:16,l:5,nc:0,ko:0.12,sub:0.12,dec:0.76,streak:2,age:30,reach:64,form:"WWLLW"},
+  {name:"Eduarda Moura",div:"Women's Flyweight",elo:1545,w:12,l:4,nc:0,ko:0.17,sub:0.25,dec:0.58,streak:1,age:27,reach:64,form:"WLWWL"},
+  {name:"Kayla Harrison",div:"Women's Bantamweight",elo:1744,w:19,l:1,nc:0,ko:.17,sub:.44,dec:.39,streak:3,age:34,reach:69,form:"LWWWW"},
+  {name:"Julianna Pena",div:"Women's Bantamweight",elo:1726,w:12,l:6,nc:0,ko:.08,sub:.58,dec:.34,streak:-1,age:35,reach:65,form:"WWWWL"},
+  {name:"Raquel Pennington",div:"Women's Bantamweight",elo:1708,w:16,l:9,nc:0,ko:.19,sub:.06,dec:.75,streak:-1,age:34,reach:66,form:"WWWWL"},
+  {name:"Mayra Bueno Silva",div:"Women's Bantamweight",elo:1492,w:12,l:3,nc:0,ko:.25,sub:.42,dec:.33,streak:-2,age:31,reach:65,form:"WWWLL"},
+  {name:"Holly Holm",div:"Women's Bantamweight",elo:1474,w:15,l:9,nc:0,ko:.40,sub:.07,dec:.53,streak:-3,age:42,reach:69,form:"WWLLL"},
+  {name:"Irene Aldana",div:"Women's Bantamweight",elo:1600,w:15,l:8,nc:0,ko:.40,sub:.20,dec:.40,streak:-1,age:36,reach:68,form:"WWWWL"},
+  {name:"Ketlen Vieira",div:"Women's Bantamweight",elo:1654,w:15,l:5,nc:0,ko:.14,sub:.21,dec:.65,streak:1,age:32,reach:68,form:"LWWWW"},
+  {name:"Macy Chiasson",div:"Women's Bantamweight",elo:1582,w:10,l:6,nc:0,ko:.33,sub:.22,dec:.45,streak:-2,age:32,reach:70,form:"WWWLL"},
+  {name:"Sara McMann",div:"Women's Bantamweight",elo:1601,w:13,l:7,nc:0,ko:.08,sub:.31,dec:.61,streak:-1,age:43,reach:66,form:"LWWLW"},
+  {name:"Norma Dumont",div:"Women's Bantamweight",elo:1672,w:13,l:2,nc:0,ko:.11,sub:.11,dec:.78,streak:3,age:34,reach:68,form:"LWWWW"},
+  {name:"Pannie Kianzad",div:"Women's Bantamweight",elo:1578,w:17,l:7,nc:0,ko:.06,sub:.12,dec:.82,streak:1,age:33,reach:65,form:"WLLWW"},
+  {name:"Brandon Moreno",div:"Flyweight",elo:1586,w:23,l:10,nc:2,ko:0.22,sub:0.48,dec:0.3,streak:-1,age:32,reach:68,form:"WLLLW"},
+  {name:"Kyoji Horiguchi",div:"Flyweight",elo:1658,w:36,l:5,nc:1,ko:0.28,sub:0.33,dec:0.39,streak:2,age:35,reach:66,form:"WWLWW"},
+  {name:"Asu Almabayev",div:"Flyweight",elo:1604,w:23,l:3,nc:0,ko:0.22,sub:0.35,dec:0.43,streak:2,age:29,reach:66,form:"WWLWL"},
+  {name:"Alex Perez",div:"Flyweight",elo:1550,w:26,l:10,nc:0,ko:0.31,sub:0.35,dec:0.34,streak:-1,age:34,reach:67,form:"LWLLW"},
+  {name:"Lone'er Kavanagh",div:"Flyweight",elo:1640,w:10,l:1,nc:0,ko:0.5,sub:0.2,dec:0.3,streak:3,age:24,reach:65,form:"WLWWW"},
+  {name:"Bruno Silva",div:"Flyweight",elo:1478,w:15,l:7,nc:2,ko:0.53,sub:0.2,dec:0.27,streak:-1,age:32,reach:67,form:"LWLWL"},
+  {name:"Yana Santos",div:"Women's Bantamweight",elo:1618,w:17,l:8,nc:1,ko:0.18,sub:0.24,dec:0.58,streak:1,age:35,reach:65,form:"WLWLW"},
+  {name:"Joselyne Edwards",div:"Women's Bantamweight",elo:1690,w:17,l:6,nc:0,ko:0.35,sub:0.24,dec:0.41,streak:3,age:31,reach:66,form:"WWLWW"},
+  {name:"Ailin Perez",div:"Women's Bantamweight",elo:1636,w:13,l:2,nc:0,ko:0.15,sub:0.15,dec:0.7,streak:4,age:28,reach:66,form:"WWWLW"},
+  {name:"Karol Rosa",div:"Women's Bantamweight",elo:1564,w:19,l:7,nc:0,ko:0.11,sub:0.32,dec:0.57,streak:-1,age:32,reach:65,form:"LWLLW"},
+  {name:"Jacqueline Cavalcanti",div:"Women's Bantamweight",elo:1546,w:10,l:1,nc:0,ko:0.3,sub:0.3,dec:0.4,streak:4,age:29,reach:65,form:"WWWWL"},
+  {name:"Nora Cornolle",div:"Women's Bantamweight",elo:1528,w:9,l:4,nc:0,ko:0.33,sub:0.22,dec:0.45,streak:1,age:28,reach:65,form:"WLLWW"},
+  {name:"Luana Santos",div:"Women's Bantamweight",elo:1510,w:10,l:2,nc:0,ko:0.2,sub:0.3,dec:0.5,streak:2,age:27,reach:64,form:"WWLWL"},
+  {name:"Josh Hokit",div:"Heavyweight",elo:1802,w:9,l:0,nc:0,ko:0.56,sub:0.33,dec:0.11,streak:3,age:28,reach:73,form:"WWWWW"},
+  {name:"Serghei Spivac",div:"Heavyweight",elo:1784,w:18,l:6,nc:0,ko:0.39,sub:0.5,dec:0.11,streak:-1,age:31,reach:77,form:"LWWLL"},
+  {name:"Rizvan Kuniev",div:"Heavyweight",elo:1748,w:13,l:3,nc:1,ko:0.46,sub:0.38,dec:0.16,streak:2,age:27,reach:76,form:"LWWWW"},
+  {name:"Ante Delija",div:"Heavyweight",elo:1694,w:26,l:8,nc:0,ko:0.65,sub:0.12,dec:0.23,streak:-1,age:35,reach:76,form:"WWWWL"},
+  {name:"Tyrell Fortune",div:"Heavyweight",elo:1712,w:18,l:3,nc:2,ko:0.56,sub:0.06,dec:0.38,streak:2,age:35,reach:75,form:"LWWWW"},
+  {name:"Tallison Teixeira",div:"Heavyweight",elo:1622,w:9,l:1,nc:0,ko:0.44,sub:0.22,dec:0.34,streak:1,age:28,reach:76,form:"WWWLW"},
+  {name:"Mick Parkin",div:"Heavyweight",elo:1560,w:11,l:1,nc:0,ko:0.91,sub:0.0,dec:0.09,streak:3,age:30,reach:76,form:"LWWWW"},
+  {name:"Azamat Murzakanov",div:"Light Heavyweight",elo:1676,w:16,l:1,nc:0,ko:0.75,sub:0.06,dec:0.19,streak:4,age:32,reach:74,form:"LWWWW"},
+  {name:"Anthony Hernandez",div:"Middleweight",elo:1673,w:15,l:3,nc:1,ko:0.44,sub:0.25,dec:0.31,streak:4,age:28,reach:74,form:"LWWWW"},
+  {name:"Jared Cannonier",div:"Middleweight",elo:1592,w:18,l:9,nc:0,ko:0.56,sub:0.06,dec:0.38,streak:-2,age:40,reach:73,form:"WWWLL"},
+  {name:"Christian Leroy Duncan",div:"Middleweight",elo:1556,w:14,l:2,nc:0,ko:0.43,sub:0.21,dec:0.36,streak:3,age:28,reach:73,form:"LWWWW"},
+  {name:"Gabriel Bonfim",div:"Welterweight",elo:1687,w:19,l:1,nc:0,ko:0.32,sub:0.42,dec:0.26,streak:3,age:27,reach:72,form:"LWWWW"},
+  {name:"Mike Malott",div:"Welterweight",elo:1669,w:14,l:2,nc:1,ko:0.36,sub:0.36,dec:0.28,streak:2,age:31,reach:72,form:"LWWWW"},
+  {name:"Michael Page",div:"Welterweight",elo:1651,w:25,l:3,nc:0,ko:0.52,sub:0.04,dec:0.44,streak:3,age:37,reach:76,form:"LWWWW"},
+  {name:"Yaroslav Amosov",div:"Welterweight",elo:1705,w:30,l:1,nc:0,ko:0.37,sub:0.43,dec:0.2,streak:1,age:31,reach:74,form:"LWWWW"},
+  {name:"Daniel Rodriguez",div:"Welterweight",elo:1633,w:20,l:5,nc:0,ko:0.35,sub:0.1,dec:0.55,streak:-1,age:39,reach:73,form:"WWWWL"},
+  {name:"Benoit Saint-Denis",div:"Lightweight",elo:1730,w:17,l:3,nc:1,ko:0.47,sub:0.18,dec:0.35,streak:2,age:28,reach:72,form:"WWLWW"},
+  {name:"Mauricio Ruffy",div:"Lightweight",elo:1649,w:13,l:2,nc:0,ko:0.62,sub:0.15,dec:0.23,streak:3,age:27,reach:71,form:"WWWLW"},
+  {name:"Quillan Salkilld",div:"Lightweight",elo:1604,w:12,l:1,nc:0,ko:0.42,sub:0.25,dec:0.33,streak:3,age:26,reach:71,form:"WWWLL"},
+  {name:"Aljamain Sterling",div:"Featherweight",elo:1749,w:26,l:5,nc:0,ko:0.28,sub:0.4,dec:0.32,streak:2,age:37,reach:68,form:"WLWWW"},
+  {name:"Jean Silva",div:"Featherweight",elo:1713,w:17,l:3,nc:0,ko:0.57,sub:0.14,dec:0.29,streak:-1,age:27,reach:71,form:"WWWLW"},
+  {name:"Youssef Zalal",div:"Featherweight",elo:1677,w:18,l:6,nc:1,ko:0.28,sub:0.22,dec:0.5,streak:-1,age:28,reach:71,form:"LWLWL"},
+  {name:"Steve Garcia",div:"Featherweight",elo:1659,w:19,l:5,nc:0,ko:0.47,sub:0.16,dec:0.37,streak:2,age:32,reach:70,form:"WWLWL"},
+  {name:"Melquizael Costa",div:"Featherweight",elo:1605,w:26,l:8,nc:0,ko:0.53,sub:0.12,dec:0.35,streak:-1,age:26,reach:70,form:"LWWWL"},
+  {name:"Kevin Vallejos",div:"Featherweight",elo:1641,w:18,l:1,nc:0,ko:0.55,sub:0.09,dec:0.36,streak:3,age:26,reach:70,form:"WWWLW"},
+  {name:"David Onama",div:"Featherweight",elo:1569,w:14,l:3,nc:0,ko:0.38,sub:0.15,dec:0.47,streak:1,age:30,reach:71,form:"WLWLW"},
+  {name:"Aiemann Zahabi",div:"Bantamweight",elo:1654,w:16,l:4,nc:0,ko:0.19,sub:0.25,dec:0.56,streak:4,age:34,reach:68,form:"WWWWL"},
+  {name:"David Martinez",div:"Bantamweight",elo:1600,w:18,l:4,nc:0,ko:0.33,sub:0.22,dec:0.45,streak:2,age:28,reach:68,form:"WWLWL"},
+  {name:"Payton Talbott",div:"Bantamweight",elo:1564,w:10,l:0,nc:0,ko:0.6,sub:0.2,dec:0.2,streak:5,age:24,reach:68,form:"WWWWW"},
+  {name:"Vinicius Oliveira",div:"Bantamweight",elo:1546,w:18,l:3,nc:0,ko:0.44,sub:0.22,dec:0.34,streak:-1,age:27,reach:67,form:"WWLWL"},
+  {name:"Raul Rosas Jr",div:"Bantamweight",elo:1528,w:12,l:1,nc:0,ko:0.17,sub:0.75,dec:0.08,streak:3,age:20,reach:67,form:"WWWLW"},
+  {name:"Farid Basharat",div:"Bantamweight",elo:1492,w:13,l:1,nc:0,ko:0.31,sub:0.23,dec:0.46,streak:4,age:27,reach:67,form:"WWWWL"},
+  {name:"Aaron Pico",div:"Featherweight",elo:1587,w:14,l:5,nc:0,ko:0.54,sub:0.15,dec:0.31,streak:-2,age:28,reach:68,form:"WWWLW"},
+  {name:"Valter Walker",div:"Heavyweight",elo:1658,w:15,l:1,nc:0,ko:0.8,sub:0.07,dec:0.13,streak:4,age:27,reach:76,form:"LWWWW"},
+  {name:"Uros Medic",div:"Welterweight",elo:1651,w:13,l:3,nc:0,ko:0.31,sub:0.23,dec:0.46,streak:2,age:32,reach:73,form:"LWWWW"},
+  {name:"Charles Johnson",div:"Flyweight",elo:1496,w:13,l:3,nc:0,ko:0.31,sub:0.31,dec:0.38,streak:1,age:29,reach:66,form:"WLWWL"},
+  {name:"Brando Pericic",div:"Heavyweight",elo:1640,w:7,l:1,nc:0,ko:0.5,sub:0.17,dec:0.33,streak:2,age:31,reach:76,form:"LWWWW"}
+];
+
+let fighters = BASE.map(f=>({...f}));
+const origData = {};
+BASE.forEach(f=>{ origData[f.name]={elo:f.elo,w:f.w,l:f.l,streak:f.streak,form:f.form}; });
+
+const DIVS=["All","Heavyweight","Light Heavyweight","Middleweight","Welterweight","Lightweight","Featherweight","Bantamweight","Flyweight","Women's Strawweight","Women's Flyweight","Women's Bantamweight"];
+let activeDivFilter="All", activeRankDiv="Heavyweight";
+let simLog=[];
+
+function eloProb(a,b){return 1/(1+Math.pow(10,(b-a)/400));}
+function getF(n){return fighters.find(f=>f.name===n);}
+function formScore(form){
+  if(!form||typeof form!=='string')return 0;
+  let s=0;const chars=[...form].filter(c=>c==='W'||c==='L');
+  chars.forEach((c,i)=>{const w=chars.length-i;if(c==='W')s+=w;else if(c==='L')s-=w;});
+  return chars.length?s/(chars.length*(chars.length+1)/2):0;
+}
+
+// Weight class order — heavier = higher index = size advantage
+const DIV_WEIGHT = {
+  "Women's Strawweight":0, "Women's Flyweight":1, "Women's Bantamweight":2,
+  "Flyweight":3, "Bantamweight":4, "Featherweight":5,
+  "Lightweight":6, "Welterweight":7, "Middleweight":8,
+  "Light Heavyweight":9, "Heavyweight":10
+};
+function isWomenDiv(div){ return div.startsWith("Women's"); }
+
+// Returns {prob, eloBonus, note}
+// eloBonus added to A's effective Elo based on weight/gender advantage
+function sizeBonus(fA, fB){
+  const wA = DIV_WEIGHT[fA.div] ?? 5;
+  const wB = DIV_WEIGHT[fB.div] ?? 5;
+  const genderA = isWomenDiv(fA.div);
+  const genderB = isWomenDiv(fB.div);
+
+  // Same division — no bonus
+  if(fA.div === fB.div) return {bonus:0, note:null, block:false};
+
+  // Man vs woman — show warning, apply huge Elo bonus to the man
+  if(genderA !== genderB){
+    const manIsA = !genderA;
+    return {
+      bonus: manIsA ? 600 : -600,  // ~99% win for the man at equal Elo
+      note: '⚠️ Men are biologically larger and stronger — this matchup would not happen in sanctioned MMA.',
+      block: false
+    };
+  }
+
+  // Same gender, different weight class
+  const diff = wA - wB;  // positive = A is heavier
+  // Each weight class step is roughly 10-15 lbs. Model: 60 Elo per step.
+  const bonus = diff * 60;
+  let note = null;
+  if(Math.abs(diff) === 1) note = `${diff>0?fA.name:fB.name} comes from a heavier division — size advantage applies.`;
+  if(Math.abs(diff) === 2) note = `${diff>0?fA.name:fB.name} has a significant size advantage (2 weight classes).`;
+  if(Math.abs(diff) >= 3)  note = `${diff>0?fA.name:fB.name} has a massive size advantage (${Math.abs(diff)} weight classes) — result heavily skewed.`;
+  return {bonus, note, block:false};
+}
+
+function adjProb(fA, fB){
+  const base = eloProb(fA.elo, fB.elo);
+  const form = (formScore(fA.form) - formScore(fB.form)) * 0.05;
+  const {bonus} = sizeBonus(fA, fB);
+  // Apply size bonus as additional Elo shift
+  const sizeAdj = bonus / 400 * Math.log(10) * eloProb(fA.elo, fB.elo) * (1 - eloProb(fA.elo, fB.elo));
+  return Math.min(.99, Math.max(.01, base + form + sizeAdj));
+}
+
+function switchTab(t){
+  document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));
+  document.querySelectorAll('.panel').forEach(x=>x.classList.remove('active'));
+  document.querySelector(`[onclick="switchTab('${t}')"]`).classList.add('active');
+  document.getElementById('panel-'+t).classList.add('active');
+  if(t==='rankings')renderRankings();
+  if(t==='simulate')populateSim();
+}
+
+function shortDiv(d){
+  return d.replace("Women's ","W.").replace("Light Heavyweight","LHW").replace("Heavyweight","HW").replace("Lightweight","LW").replace("Welterweight","WW").replace("Middleweight","MW").replace("Featherweight","FW").replace("Bantamweight","BW").replace("Flyweight","FLY").replace("Strawweight","STR");
+}
+
+
+
+function buildDivFilter(containerId, divList, activeRef, onClickFn){
+  const wrap=document.getElementById(containerId);
+  divList.forEach(d=>{
+    const b=document.createElement('button');
+    b.className='div-btn'+(d===activeRef?' active':'');
+    b.textContent=d==="All"?d:shortDiv(d);
+    b.title=d;
+    b.onclick=()=>{
+      onClickFn(d);
+      wrap.querySelectorAll('.div-btn').forEach(x=>x.classList.remove('active'));
+      b.classList.add('active');
+    };
+    wrap.appendChild(b);
+  });
+}
+
+function filteredFighters(){
+  return fighters.filter(f=>activeDivFilter==="All"||f.div===activeDivFilter).sort((a,b)=>b.elo-a.elo);
+}
+
+function formDots(form){
+  if(!form)return '';
+  return [...form].map(c=>{
+    const cls=c==='W'?'fd-w':c==='L'?'fd-l':'fd-n';
+    return `<div class="fd ${cls}">${c}</div>`;
+  }).join('');
+}
+
+function renderCard(divId,name){
+  const f=getF(name);
+  if(!f){document.getElementById(divId).innerHTML='';return;}
+  const sH=f.streak>0?`<span class="su">&#9650;${f.streak}W</span>`:`<span class="sd">&#9660;${Math.abs(f.streak)}L</span>`;
+  document.getElementById(divId).innerHTML=`
+    <div class="f-name">${f.name}</div>
+    <div class="f-meta"><span class="elo-n">${f.elo} ELO</span> &middot; ${sH}</div>
+    <div class="stat-grid">
+      <div class="stat-box"><div class="stat-label">Record</div><div class="stat-val">${f.w}-${f.l}${f.nc?'-'+f.nc+' NC':''}</div></div>
+      <div class="stat-box"><div class="stat-label">Division</div><div class="stat-val">${shortDiv(f.div)}</div></div>
+      <div class="stat-box"><div class="stat-label">Finish rate</div><div class="stat-val">${Math.round((f.ko+f.sub)*100)}%</div></div>
+      <div class="stat-box"><div class="stat-label">Reach</div><div class="stat-val">${f.reach}"</div></div>
+    </div>
+    <div class="form-bar">${formDots(f.form)}</div>`;
+}
+
+function renderCard_legacy(divId,name){
+  renderCard(divId,name);
+}
+
+function runPredict_OLD_UNUSED(){
+  const nA='',nB='';
+  if(nA===nB){document.getElementById('results').innerHTML='<p style="text-align:center;color:var(--text2);padding:2rem 0">Select two different fighters.</p>';return;}
+  const fA=getF(nA),fB=getF(nB);
+  const pA=adjProb(fA,fB),pB=1-pA;
+  const koA=fA.ko*pA,subA=fA.sub*pA,koB=fB.ko*pB,subB=fB.sub*pB;
+  const tKO=Math.round((koA+koB)*100),tSub=Math.round((subA+subB)*100),tDec=100-tKO-tSub;
+  const pAr=Math.round(pA*100),pBr=100-pAr;
+  const aKO=Math.round(koA*100),aSub=Math.round(subA*100),aDec=Math.round(fA.dec*pA*100);
+  const bKO=Math.round(koB*100),bSub=Math.round(subB*100),bDec=Math.round(fB.dec*pB*100);
+  const favA=pA>=pB,diff=Math.abs(fA.elo-fB.elo);
+  const xDiv=fA.div!==fB.div?`<div class="warn">&#9888; Cross-division matchup &mdash; figures are illustrative</div>`:'';
+  const rd=fA.reach-fB.reach;
+  const rNote=rd!==0?`<div class="reach-note">${rd>0?fA.name:fB.name} has ${Math.abs(rd)}" reach advantage</div>`:'';
+  document.getElementById('results').innerHTML=`
+    <div class="section">
+      <div class="sec-title">Win Probability <span style="font-weight:400;text-transform:none;letter-spacing:0">(Elo + form weighted)</span></div>
+      <div class="win-row">
+        <span class="win-name">${fA.name}${favA?'<span class="fav-tag">FAV</span>':''}</span>
+        <div class="bar-wrap"><div class="bar-fill bar-red" style="width:${pAr}%"></div></div>
+        <span class="win-pct">${pAr}%</span>
+      </div>
+      <div class="win-row">
+        <span class="win-name">${fB.name}${!favA?'<span class="fav-tag">FAV</span>':''}</span>
+        <div class="bar-wrap"><div class="bar-fill bar-blue" style="width:${pBr}%"></div></div>
+        <span class="win-pct">${pBr}%</span>
+      </div>
+      <div class="elo-gap">Elo gap: ${diff} pts</div>
+      ${rNote}${xDiv}
+    </div>
+    <div class="section">
+      <div class="sec-title">How Does the Fight End?</div>
+      <div class="outcome-grid">
+        <div class="oc"><div class="oc-icon" style="color:var(--red)">&#9889;</div><div class="oc-label">KO / TKO</div><div class="oc-pct">${tKO}%</div><div class="oc-sub">Striking finish</div></div>
+        <div class="oc"><div class="oc-icon" style="color:#7b6fd8">&#9900;</div><div class="oc-label">Submission</div><div class="oc-pct">${tSub}%</div><div class="oc-sub">Ground finish</div></div>
+        <div class="oc"><div class="oc-icon" style="color:var(--green)">&#9878;</div><div class="oc-label">Decision</div><div class="oc-pct">${tDec}%</div><div class="oc-sub">Goes to judges</div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title">Per-Fighter Breakdown</div>
+      <div class="bk-grid">
+        <div class="bk">
+          <div class="bk-name" style="color:var(--red)">${fA.name}</div>
+          <div class="bk-row"><span class="bk-l">Win by KO/TKO</span><span class="bk-v">${aKO}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by submission</span><span class="bk-v">${aSub}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by decision</span><span class="bk-v">${aDec}%</span></div>
+          <div class="bk-row"><span class="bk-l">Any loss</span><span class="bk-v">${pBr}%</span></div>
+          <div class="bk-row"><span class="bk-l">Reach</span><span class="bk-v">${fA.reach}"</span></div>
+        </div>
+        <div class="bk">
+          <div class="bk-name" style="color:var(--blue)">${fB.name}</div>
+          <div class="bk-row"><span class="bk-l">Win by KO/TKO</span><span class="bk-v">${bKO}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by submission</span><span class="bk-v">${bSub}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by decision</span><span class="bk-v">${bDec}%</span></div>
+          <div class="bk-row"><span class="bk-l">Any loss</span><span class="bk-v">${pAr}%</span></div>
+          <div class="bk-row"><span class="bk-l">Reach</span><span class="bk-v">${fB.reach}"</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// Official UFC champions per division
+const CHAMPIONS = {
+  "Heavyweight":           "Tom Aspinall",
+  "Light Heavyweight":     "Carlos Ulberg",
+  "Middleweight":          "Sean Strickland",
+  "Welterweight":          "Islam Makhachev",
+  "Lightweight":           "Ilia Topuria",
+  "Featherweight":         "Alexander Volkanovski",
+  "Bantamweight":          "Petr Yan",
+  "Flyweight":             "Joshua Van",
+  "Women's Strawweight":   "Mackenzie Dern",
+  "Women's Flyweight":     "Valentina Shevchenko",
+  "Women's Bantamweight":  "Kayla Harrison",
+};
+
+function renderRankings(){
+  const list=fighters.filter(f=>f.div===activeRankDiv).sort((a,b)=>b.elo-a.elo);
+  const champ = CHAMPIONS[activeRankDiv];
+  document.getElementById('rankTitle').textContent='Rankings — '+activeRankDiv;
+  let contenderRank = 0;
+  document.getElementById('rankBody').innerHTML=list.map((f)=>{
+    const isChamp = f.name === champ;
+    const rankLabel = isChamp
+      ? `<span style="color:var(--gold);font-weight:700;font-size:11px;letter-spacing:.05em">C</span>`
+      : `${++contenderRank}`;
+    const sH=f.streak>0?`<span class="su">&#9650;${f.streak}W</span>`:`<span class="sd">&#9660;${Math.abs(f.streak)}L</span>`;
+    return `<tr${isChamp?' style="background:rgba(212,175,55,.07)"':''}>
+      <td class="rank-num">${rankLabel}</td>
+      <td class="rank-name">${f.name}${isChamp?` <span style="font-size:10px;color:var(--gold);opacity:.8">CHAMP</span>`:''}</td>
+      <td><span class="elo-pill">${f.elo}</span></td>
+      <td style="color:var(--text2)">${f.w}-${f.l}</td>
+      <td>${sH}</td>
+      <td><div class="form-bar">${formDots(f.form)}</div></td>
+    </tr>`;
+  }).join('');
+}
+
+function populateSim(){
+  // Sim now uses picker inputs (SA/SB) — no selects to populate
+}
+
+function simFight(){
+  const nA=pickerState.SA.selected, nB=pickerState.SB.selected;
+  if(!nA||!nB){alert('Select two fighters first.');return;}
+  if(nA===nB){alert('Select two different fighters.');return;}
+  const fA=getF(nA),fB=getF(nB);
+  if(!fA||!fB){console.warn('Fighter not found',nA,nB);return;}
+  const pA=adjProb(fA,fB);
+  const winnerIsA=Math.random()<pA;
+  const winner=winnerIsA?fA:fB,loser=winnerIsA?fB:fA;
+  const forced=document.getElementById('simMethod').value;
+  let method;
+  if(forced==='ko')method='KO/TKO';
+  else if(forced==='sub')method='Submission';
+  else if(forced==='dec')method='Decision';
+  else{
+    const r=Math.random(),finRate=winner.ko+winner.sub;
+    if(r<winner.ko)method='KO/TKO';
+    else if(r<finRate)method='Submission';
+    else method='Decision';
+  }
+  const round=method==='Decision'?5:Math.ceil(Math.random()*3);
+  const K=28*(method==='Decision'?1:1.25);
+  const exp=winnerIsA?pA:1-pA;
+  const gain=Math.round(K*(1-exp)),loss=Math.round(K*exp);
+  winner.elo+=gain;loser.elo=Math.max(1400,loser.elo-loss);
+  winner.w+=1;loser.l+=1;
+  winner.streak=winner.streak>0?winner.streak+1:1;
+  loser.streak=loser.streak<0?loser.streak-1:-1;
+  winner.form=(winner.form+'W').slice(-5);
+  loser.form=(loser.form+'L').slice(-5);
+  simLog.unshift({w:winner.name,l:loser.name,method,round,gain,loss});
+  if(simLog.length>10)simLog.pop();
+  document.getElementById('simLog').innerHTML=simLog.map(r=>`
+    <div class="sim-log-row">
+      <span class="w-tag">WIN</span>
+      <span class="sim-winner">${r.w}</span>
+      <span class="sim-loser">def. ${r.l}</span>
+      <span class="sim-method">${r.method}, R${r.round}</span>
+      <span class="elo-chg"><span class="su">+${r.gain}</span><span class="sd">-${r.loss}</span></span>
+    </div>`).join('');
+  // Refresh rankings if that tab is visible
+  if(document.getElementById('panel-rankings').classList.contains('active')) renderRankings();
+}
+
+function resetElo(){
+  fighters.forEach(f=>{
+    const d=origData[f.name];
+    if(d){f.elo=d.elo;f.w=d.w;f.l=d.l;f.streak=d.streak;f.form=d.form;}
+  });
+  simLog=[];
+  document.getElementById('simLog').innerHTML='';
+}
+
+// ── Picker state ─────────────────────────────────────────────
+// ── Fighter Picker ────────────────────────────────────────────
+const pickerState = {
+  A:  { selected: null, highlighted: -1, query: '', blurTimer: null },
+  B:  { selected: null, highlighted: -1, query: '', blurTimer: null },
+  SA: { selected: null, highlighted: -1, query: '', blurTimer: null },
+  SB: { selected: null, highlighted: -1, query: '', blurTimer: null },
+};
+
+function shortDivLabel(d){
+  return d.replace("Women's ","W.").replace("Light Heavyweight","LHW").replace("Heavyweight","HW")
+    .replace("Lightweight","LW").replace("Welterweight","WW").replace("Middleweight","MW")
+    .replace("Featherweight","FW").replace("Bantamweight","BW").replace("Flyweight","FLY").replace("Strawweight","STR");
+}
+
+function getFilteredForPicker(side){
+  const q = pickerState[side].query.toLowerCase().trim();
+  let list = fighters;
+  if(activeDivFilter !== "All") list = list.filter(f => f.div === activeDivFilter);
+  if(q) list = list.filter(f => f.name.toLowerCase().includes(q));
+  else list = [...list].sort((a,b) => b.elo - a.elo);
+  return list;
+}
+
+function highlightMatch(name, q){
+  if(!q) return name;
+  const idx = name.toLowerCase().indexOf(q.toLowerCase());
+  if(idx === -1) return name;
+  return name.slice(0,idx) + '<mark>' + name.slice(idx, idx+q.length) + '</mark>' + name.slice(idx+q.length);
+}
+
+function renderDropdown(side){
+  const st = pickerState[side];
+  const drop = document.getElementById('drop'+side);
+  const list = getFilteredForPicker(side);
+  if(!list.length){ drop.innerHTML='<div class="dropdown-empty">No fighters found</div>'; return; }
+  drop.innerHTML = list.map((f,i) => {
+    const isSel = st.selected === f.name;
+    const isHi  = i === st.highlighted;
+    return `<div class="dropdown-item${isSel?' selected':''}${isHi?' highlighted':''}" data-name="${f.name.replace(/"/g,'&quot;')}" data-side="${side}">
+      <span class="di-name">${highlightMatch(f.name, st.query)}</span>
+      <span class="di-div">${shortDivLabel(f.div)}</span>
+      <span class="di-elo">${f.elo}</span>
+    </div>`;
+  }).join('');
+  if(st.highlighted >= 0){
+    const items = drop.querySelectorAll('.dropdown-item');
+    if(items[st.highlighted]) items[st.highlighted].scrollIntoView({block:'nearest'});
+  }
+}
+
+function openPicker(side){
+  const st = pickerState[side];
+  if(st.blurTimer){ clearTimeout(st.blurTimer); st.blurTimer = null; }
+  st.highlighted = -1;
+  document.getElementById('drop'+side).classList.add('open');
+  renderDropdown(side);
+}
+
+function closePicker(side){
+  document.getElementById('drop'+side).classList.remove('open');
+  const st = pickerState[side];
+  if(st.selected) document.getElementById('input'+side).value = st.selected;
+}
+
+function selectFighter(side, name){
+  const st = pickerState[side];
+  // Cancel any pending blur timer
+  if(st.blurTimer){ clearTimeout(st.blurTimer); st.blurTimer = null; }
+  st.selected = name;
+  st.query = '';
+  const inp = document.getElementById('input'+side);
+  inp.value = name;
+  document.getElementById('drop'+side).classList.remove('open');
+  inp.blur();
+  if(side==='A'||side==='B'){
+    renderCard('info'+side, name);
+    document.getElementById('results').innerHTML = '';
+  }
+}
+
+// Wire up inputs via addEventListener (no inline handlers)
+['A','B','SA','SB'].forEach(side => {
+  const inp = document.getElementById('input'+side);
+  if(!inp) return;
+  inp.addEventListener('input', () => {
+    pickerState[side].query = inp.value;
+    pickerState[side].highlighted = -1;
+    openPicker(side);
+  });
+  inp.addEventListener('focus', () => {
+    if(pickerState[side].blurTimer){ clearTimeout(pickerState[side].blurTimer); pickerState[side].blurTimer=null; }
+    openPicker(side);
+  });
+  inp.addEventListener('blur', () => onPickerBlur(side));
+  inp.addEventListener('keydown', e => {
+    const st = pickerState[side];
+    const drop = document.getElementById('drop'+side);
+    const list = getFilteredForPicker(side);
+    if(!drop.classList.contains('open')){ openPicker(side); return; }
+    if(e.key==='ArrowDown'){ e.preventDefault(); st.highlighted=Math.min(st.highlighted+1,list.length-1); renderDropdown(side); }
+    else if(e.key==='ArrowUp'){ e.preventDefault(); st.highlighted=Math.max(st.highlighted-1,0); renderDropdown(side); }
+    else if(e.key==='Enter'){ e.preventDefault(); const p=st.highlighted>=0?list[st.highlighted]:list[0]; if(p)selectFighter(side,p.name); }
+    else if(e.key==='Escape'){ closePicker(side); }
+  });
+});
+
+// Single document click listener — handles both selection and outside-close
+document.addEventListener('click', e => {
+  // Check if a dropdown item was clicked
+  const item = e.target.closest('.dropdown-item[data-name]');
+  if(item){
+    selectFighter(item.dataset.side, item.dataset.name);
+    return;
+  }
+  // Close any open dropdowns if clicked outside their picker
+  ['A','B'].forEach(side => {
+    const picker = document.getElementById('picker'+side);
+    if(picker && !picker.contains(e.target)) closePicker(side);
+  });
+});
+
+// Dropdowns close via onblur with timer
+function onPickerBlur(side){
+  pickerState[side].blurTimer = setTimeout(() => {
+    closePicker(side);
+    pickerState[side].blurTimer = null;
+  }, 200);
+}
+
+// Cancel blur timer on any mousedown so buttons/items can fire first
+document.addEventListener('mousedown', () => {
+  ['A','B','SA','SB'].forEach(side => {
+    if(pickerState[side] && pickerState[side].blurTimer){
+      clearTimeout(pickerState[side].blurTimer);
+      pickerState[side].blurTimer = null;
+    }
+  });
+});
+
+function applyFilter(){
+  // Re-render dropdowns with active filter
+  ['A','B'].forEach(side => {
+    const drop = document.getElementById('drop'+side);
+    if(drop && drop.classList.contains('open')) renderDropdown(side);
+  });
+  document.getElementById('fCount').textContent = fighters.length + ' fighters';
+}
+
+function renderInfo(){
+  // legacy — kept for compat with rankings/simulate tabs
+}
+
+// Override runPredict to read from picker state
+function runPredict(){
+  const nA = pickerState.A.selected;
+  const nB = pickerState.B.selected;
+  if(!nA || !nB){
+    document.getElementById('results').innerHTML='<p style="text-align:center;color:var(--text2);padding:2rem 0">Select a fighter for each corner first.</p>';
+    return;
+  }
+  if(nA===nB){
+    document.getElementById('results').innerHTML='<p style="text-align:center;color:var(--text2);padding:2rem 0">Select two different fighters.</p>';
+    return;
+  }
+  const fA=getF(nA),fB=getF(nB);
+  const {bonus, note:sizeNote} = sizeBonus(fA, fB);
+  // Compute effective Elo with size bonus applied directly
+  const effEloA = fA.elo + bonus;
+  const effEloB = fB.elo;
+  const baseP = eloProb(effEloA, effEloB);
+  const formAdj = (formScore(fA.form) - formScore(fB.form)) * 0.05;
+  const pA = Math.min(.99, Math.max(.01, baseP + formAdj));
+  const pB = 1 - pA;
+
+  const koA=fA.ko*pA,subA=fA.sub*pA,koB=fB.ko*pB,subB=fB.sub*pB;
+  const tKO=Math.round((koA+koB)*100),tSub=Math.round((subA+subB)*100),tDec=100-tKO-tSub;
+  const pAr=Math.round(pA*100),pBr=100-pAr;
+  const aKO=Math.round(koA*100),aSub=Math.round(subA*100),aDec=Math.round(fA.dec*pA*100);
+  const bKO=Math.round(koB*100),bSub=Math.round(subB*100),bDec=Math.round(fB.dec*pB*100);
+  const favA=pA>=pB,diff=Math.abs(fA.elo-fB.elo);
+
+  const rd=fA.reach-fB.reach;
+  const rNote=rd!==0?`<div class="reach-note">${rd>0?fA.name:fB.name} has ${Math.abs(rd)}" reach advantage</div>`:'';
+
+  // Build context notes
+  let contextNotes = '';
+  if(sizeNote){
+    const isGender = isWomenDiv(fA.div) !== isWomenDiv(fB.div);
+    contextNotes += `<div class="warn" style="${isGender?'border-color:#e74;color:#e74;':''}">&#9888; ${sizeNote}</div>`;
+  } else if(fA.div !== fB.div){
+    contextNotes += `<div class="warn">&#9888; Cross-division matchup — size factor applied</div>`;
+  }
+
+  document.getElementById('results').innerHTML=`
+    <div class="section">
+      <div class="sec-title">Win Probability <span style="font-weight:400;text-transform:none;letter-spacing:0">(Elo + form + size)</span></div>
+      <div class="win-row"><span class="win-name">${fA.name}${favA?'<span class="fav-tag">FAV</span>':''}</span><div class="bar-wrap"><div class="bar-fill bar-red" style="width:${pAr}%"></div></div><span class="win-pct">${pAr}%</span></div>
+      <div class="win-row"><span class="win-name">${fB.name}${!favA?'<span class="fav-tag">FAV</span>':''}</span><div class="bar-wrap"><div class="bar-fill bar-blue" style="width:${pBr}%"></div></div><span class="win-pct">${pBr}%</span></div>
+      <div class="elo-gap">Elo gap: ${diff} pts${bonus!==0?` &nbsp;|&nbsp; Size adjustment: ${bonus>0?'+':''}${bonus} pts`:''}</div>${rNote}${contextNotes}
+    </div>
+    <div class="section">
+      <div class="sec-title">How Does the Fight End?</div>
+      <div class="outcome-grid">
+        <div class="oc"><div class="oc-icon" style="color:var(--red)">&#9889;</div><div class="oc-label">KO / TKO</div><div class="oc-pct">${tKO}%</div><div class="oc-sub">Striking finish</div></div>
+        <div class="oc"><div class="oc-icon" style="color:#7b6fd8">&#9900;</div><div class="oc-label">Submission</div><div class="oc-pct">${tSub}%</div><div class="oc-sub">Ground finish</div></div>
+        <div class="oc"><div class="oc-icon" style="color:var(--green)">&#9878;</div><div class="oc-label">Decision</div><div class="oc-pct">${tDec}%</div><div class="oc-sub">Goes to judges</div></div>
+      </div>
+    </div>
+    <div class="section">
+      <div class="sec-title">Per-Fighter Breakdown</div>
+      <div class="bk-grid">
+        <div class="bk"><div class="bk-name" style="color:var(--red)">${fA.name}</div>
+          <div class="bk-row"><span class="bk-l">Win by KO/TKO</span><span class="bk-v">${aKO}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by submission</span><span class="bk-v">${aSub}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by decision</span><span class="bk-v">${aDec}%</span></div>
+          <div class="bk-row"><span class="bk-l">Any loss</span><span class="bk-v">${pBr}%</span></div>
+          <div class="bk-row"><span class="bk-l">Reach</span><span class="bk-v">${fA.reach}"</span></div>
+        </div>
+        <div class="bk"><div class="bk-name" style="color:var(--blue)">${fB.name}</div>
+          <div class="bk-row"><span class="bk-l">Win by KO/TKO</span><span class="bk-v">${bKO}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by submission</span><span class="bk-v">${bSub}%</span></div>
+          <div class="bk-row"><span class="bk-l">Win by decision</span><span class="bk-v">${bDec}%</span></div>
+          <div class="bk-row"><span class="bk-l">Any loss</span><span class="bk-v">${pAr}%</span></div>
+          <div class="bk-row"><span class="bk-l">Reach</span><span class="bk-v">${fB.reach}"</span></div>
+        </div>
+      </div>
+    </div>`;
+}
+
+// ── Init ──────────────────────────────────────────────────────
+buildDivFilter('divFilter', DIVS, activeDivFilter, d=>{ activeDivFilter=d; applyFilter(); });
+buildDivFilter('rankDivFilter', DIVS.filter(d=>d!=="All"), activeRankDiv, d=>{ activeRankDiv=d; renderRankings(); });
+
+// Pre-select first two fighters by Elo
+const _init = fighters.slice().sort((a,b)=>b.elo-a.elo);
+// Corners start blank — user selects fighters manually
+populateSim();
+document.getElementById('fCount').textContent = fighters.length + ' fighters';
+
+// ── Live UFCStats record sync ─────────────────────────────────
+// Fetches fresh W/L records directly from ufcstats.com and patches the roster.
+// Uses allorigins.win as a CORS proxy so this works from a local HTML file.
+// Runs in the background — UI is instantly usable from static data while sync runs.
+
+const CORS = 'https://api.allorigins.win/raw?url=';
+const UFS_BASE = 'http://ufcstats.com/statistics/fighters?char=';
+const UFS_SUFFIX = '&page=all';
+const LETTERS = 'abcdefghijklmnopqrstuvwxyz';
+
+// Build a lookup map: lowercase name → fighter object
+const nameMap = {};
+fighters.forEach(f => { nameMap[f.name.toLowerCase()] = f; });
+
+// Also try lastname-first matching
+fighters.forEach(f => {
+  const parts = f.name.split(' ');
+  if(parts.length >= 2){
+    const rev = (parts[parts.length-1]+' '+parts.slice(0,-1).join(' ')).toLowerCase();
+    if(!nameMap[rev]) nameMap[rev] = f;
+  }
+});
+
+let syncDone = 0, syncTotal = 0, syncUpdated = 0;
+
+function updateSyncBadge(){
+  const el = document.getElementById('syncBadge');
+  if(!el) return;
+  if(syncDone < syncTotal){
+    el.textContent = `Syncing records… ${syncDone}/${syncTotal}`;
+    el.style.color = 'var(--gold)';
+  } else {
+    el.textContent = `✓ Records live from UFCStats (${syncUpdated} updated)`;
+    el.style.color = 'var(--green)';
+    // Refresh currently displayed fighter cards
+    if(pickerState.A.selected) renderCard('infoA', pickerState.A.selected);
+    if(pickerState.B.selected) renderCard('infoB', pickerState.B.selected);
+  }
+}
+
+function parseUFSPage(html){
+  const parser = new DOMParser();
+  const doc = parser.parseFromString(html, 'text/html');
+  const rows = doc.querySelectorAll('tbody tr');
+  const results = [];
+  rows.forEach(row => {
+    const cols = row.querySelectorAll('td');
+    if(cols.length < 10) return;
+    const firstName = (cols[0].textContent||'').trim();
+    const lastName  = (cols[1].textContent||'').trim();
+    const name = `${firstName} ${lastName}`.trim();
+    const wins   = parseInt((cols[7].textContent||'0').trim()) || 0;
+    const losses = parseInt((cols[8].textContent||'0').trim()) || 0;
+    const draws  = parseInt((cols[9].textContent||'0').trim()) || 0;
+    if(name) results.push({ name, wins, losses, draws });
+  });
+  return results;
+}
+
+async function fetchLetter(letter){
+  try {
+    const targetUrl = UFS_BASE + letter + UFS_SUFFIX;
+    const url = CORS + encodeURIComponent(targetUrl);
+    const resp = await fetch(url, { signal: AbortSignal.timeout(15000) });
+    if(!resp.ok) return;
+    const html = await resp.text();
+    const rows = parseUFSPage(html);
+    rows.forEach(({ name, wins, losses, draws }) => {
+      const key = name.toLowerCase();
+      const f = nameMap[key];
+      if(f){
+        if(f.w !== wins || f.l !== losses){
+          f.w = wins; f.l = losses;
+          if(draws > 0) f.draws = draws;
+          syncUpdated++;
+        }
+      }
+    });
+  } catch(e) {
+    // silently skip — network may be unavailable
+  } finally {
+    syncDone++;
+    updateSyncBadge();
+  }
+}
+
+async function runLiveSync(){
+  // Stagger requests to be polite — 26 letters × 500ms = ~13s total
+  syncTotal = LETTERS.length;
+  for(const letter of LETTERS){
+    fetchLetter(letter);
+    await new Promise(r => setTimeout(r, 500));
+  }
+}
+
+// Inject sync status badge into topbar
+document.querySelector('.topbar').insertAdjacentHTML('beforeend',
+  '<span id="syncBadge" style="font-size:11px;color:var(--text3);margin-left:auto">Syncing live records from UFCStats…</span>'
+);
+
+// Remove the existing fCount margin-left:auto so it doesn't conflict
+const fc = document.getElementById('fCount');
+if(fc) fc.style.marginLeft = '8px';
+
+// Kick off background sync
+setTimeout(runLiveSync, 1500);
+</script>
+</body>
+</html>
